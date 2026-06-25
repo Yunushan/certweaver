@@ -1,0 +1,45 @@
+---
+# Validated against the approver-policy v0.26.0 chart value schema.
+crds:
+  enabled: true
+  keep: true
+replicaCount: 2
+priorityClassName: system-cluster-critical
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+app:
+  logFormat: json
+  logLevel: 2
+  approveSignerNames:
+    - issuers.cert-manager.io/*
+    - clusterissuers.cert-manager.io/*
+metrics:
+  service:
+    enabled: true
+  servicemonitor:
+    enabled: false
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/instance: cert-manager-approver-policy

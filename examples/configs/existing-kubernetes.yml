@@ -1,0 +1,95 @@
+apiVersion: certweaver.io/v1alpha1
+kind: CertWeaverDeployment
+metadata:
+  name: certweaver-existing-k8s
+  labels:
+    owner: platform-security
+    location: primary-datacenter
+spec:
+  mode: existing-kubernetes
+  environment: production
+  platform:
+    os: rocky9
+    nodes:
+      - name: kube-operator-01
+        address: 10.20.30.21
+        sshUser: rocky
+    existingKubeconfig: /root/.kube/config
+    fetchKubeconfig: false
+  versions:
+    rke2: v1.33.12+rke2r2
+    k3s: v1.33.12+k3s1
+    helm: v3.21.2
+    certManager: v1.20.2
+    approverPolicy: v0.26.0
+    trustManager: v0.23.0
+    csiDriver: v0.15.0
+    traefikChart: 41.0.0
+    helmChecksums:
+      amd64: sha256:0a745198de24545d0055cd8414bc8d2ba10363ef5f5d38369ea1b399671cc083
+      arm64: sha256:bbd559fc0547f1d96ccbc68fe4f1cb98f01808f36538139e669369066b781267
+  secrets: {}
+  addons:
+    certManager:
+      enabled: true
+      disableAutoApproval: true
+      highAvailability: true
+      networkPolicy: true
+      prometheus: true
+    approverPolicy:
+      enabled: true
+    trustManager:
+      enabled: true
+      dedicatedNamespace: cert-manager-trust
+      secretTargets: false
+    csiDriver:
+      enabled: false
+    traefik:
+      enabled: true
+      acmeResolverEnabled: false
+    issuers:
+      letsEncryptStaging:
+        enabled: false
+        email: pki-operations@example.invalid
+      letsEncryptProduction:
+        enabled: false
+        email: pki-operations@example.invalid
+      internalCa:
+        enabled: false
+        provider: step-ca
+    monitoring:
+      prometheusRules: true
+  adapters:
+    enabled:
+      - cert-manager
+      - trust-manager
+      - traefik-acme
+    acknowledge: []
+    versions:
+      step_ca: ''
+      step_ca_chart: ''
+      openbao_chart: ''
+      openbao_image: ''
+      acme_sh_ref: ''
+      certbot: ''
+      ejbca_image: ''
+      lego: ''
+      dogtag: ''
+      freeipa: ''
+      cfssl: ''
+      dehydrated_ref: ''
+      spire_chart: ''
+      boulder_ref: ''
+      caddy: ''
+      traefik: ''
+      lemur_ref: ''
+      win_acme: ''
+      posh_acme: ''
+    checksums: {}
+    options:
+      traefik-acme:
+        resolverEnabled: false
+      step-ca:
+        installMode: kubernetes
+      openbao-pki:
+        installMode: kubernetes

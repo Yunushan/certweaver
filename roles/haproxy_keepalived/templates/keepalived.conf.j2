@@ -1,0 +1,43 @@
+global_defs {
+    router_id CERTWEAVER_{{ inventory_hostname | upper | regex_replace('[^A-Z0-9_]', '_') }}
+    enable_script_security
+    script_user root
+}
+
+vrrp_script chk_certweaver_haproxy {
+    script "/usr/local/sbin/check-certweaver-haproxy"
+    interval 2
+    timeout 2
+    fall 3
+    rise 2
+    weight -30
+}
+
+vrrp_instance CERTWEAVER_VIP {
+    state BACKUP
+    interface {{ certweaver_node_interface | default(certweaver_vip_interface) }}
+    virtual_router_id {{ certweaver_keepalived_router_id }}
+    priority {{ keepalived_priority }}
+    advert_int {{ certweaver_keepalived_advert_int }}
+    preempt_delay {{ certweaver_keepalived_preempt_delay }}
+
+    authentication {
+        auth_type PASS
+        auth_pass {{ lookup('ansible.builtin.file', certweaver_keepalived_auth_file) | trim | truncate(8, true, '') }}
+    }
+
+    unicast_src_ip {{ ansible_host }}
+    unicast_peer {
+{% for host in groups['cluster_servers'] if host != inventory_hostname %}
+        {{ hostvars[host].ansible_host }}
+{% endfor %}
+    }
+
+    virtual_ipaddress {
+        {{ certweaver_vip }}/{{ certweaver_vip_prefix_length | default(24) }} dev {{ certweaver_node_interface | default(certweaver_vip_interface) }}
+    }
+
+    track_script {
+        chk_certweaver_haproxy
+    }
+}

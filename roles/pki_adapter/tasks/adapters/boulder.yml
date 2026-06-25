@@ -1,0 +1,51 @@
+---
+- name: Enforce Boulder lab-only guard
+  ansible.builtin.assert:
+    that:
+      - certweaver_environment != 'production'
+      - "'boulder' in certweaver_allow_risky_adapters"
+    fail_msg: >-
+      Boulder is provided only for lab/integration testing and must be
+      explicitly acknowledged.
+
+- name: Require pinned Boulder Git ref
+  ansible.builtin.include_tasks: ../_require_version.yml
+  vars:
+    certweaver_required_adapter: boulder
+    certweaver_required_version: "{{ certweaver_adapter_versions.boulder_ref }}"
+
+- name: Install Boulder source prerequisite
+  ansible.builtin.dnf:
+    name: git
+    state: present
+
+- name: Check operator-provided Docker Engine
+  ansible.builtin.command: docker --version
+  register: certweaver_boulder_docker
+  changed_when: false
+  failed_when: false
+
+- name: Require Docker Engine and Compose plugin for Boulder lab
+  ansible.builtin.assert:
+    that:
+      - certweaver_boulder_docker.rc == 0
+    fail_msg: >-
+      Install and review Docker Engine plus its Compose plugin before enabling
+      the Boulder lab adapter. CertWeaver does not add a third-party Docker repository.
+
+- name: Clone pinned Boulder source
+  ansible.builtin.git:
+    repo: https://github.com/letsencrypt/boulder.git
+    dest: "{{ certweaver_adapter_root }}/boulder"
+    version: "{{ certweaver_adapter_versions.boulder_ref }}"
+    update: false
+
+- name: Start Boulder development environment when requested
+  ansible.builtin.command: docker compose up -d
+  args:
+    chdir: "{{ certweaver_adapter_root }}/boulder"
+  register: certweaver_boulder_compose
+  changed_when: >-
+    'Started' in certweaver_boulder_compose.stdout or
+    'Created' in certweaver_boulder_compose.stdout
+  when: certweaver_adapter_start_services | bool

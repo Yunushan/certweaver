@@ -1,0 +1,56 @@
+- name: Install SPIRE on Kubernetes
+  when: certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
+  block:
+    - name: Require pinned SPIRE chart version
+      ansible.builtin.include_tasks: ../_require_version.yml
+      vars:
+        certweaver_required_adapter: spire-chart
+        certweaver_required_version: "{{ certweaver_adapter_versions.spire_chart }}"
+
+    - name: Add SPIFFE hardened Helm repository
+      ansible.builtin.command:
+        argv: [helm, repo, add, spiffe, https://spiffe.github.io/helm-charts-hardened, --force-update]
+      register: certweaver_spiffe_repo
+      changed_when: "'has been added' in certweaver_spiffe_repo.stdout"
+
+    - name: Install SPIRE CRDs
+      ansible.builtin.command:
+        argv:
+          - helm
+          - upgrade
+          - --install
+          - spire-crds
+          - spiffe/spire-crds
+          - --version
+          - "{{ certweaver_adapter_versions.spire_chart }}"
+          - --namespace
+          - spire-system
+          - --create-namespace
+          - --wait
+      register: certweaver_spire_crds
+      changed_when: "'has been upgraded' in certweaver_spire_crds.stdout or 'has been installed' in certweaver_spire_crds.stdout"
+
+    - name: Install SPIRE
+      ansible.builtin.command:
+        argv:
+          - helm
+          - upgrade
+          - --install
+          - spire
+          - spiffe/spire
+          - --version
+          - "{{ certweaver_adapter_versions.spire_chart }}"
+          - --namespace
+          - spire-system
+          - --values
+          - "{{ certweaver_adapter_options.get('spire', {}).get('valuesFile', '/etc/certweaver/spire-values.yaml') }}"
+          - --wait
+          - --timeout
+          - 15m
+      register: certweaver_spire_helm
+      changed_when: "'has been upgraded' in certweaver_spire_helm.stdout or 'has been installed' in certweaver_spire_helm.stdout"
+
+- name: Explain non-Kubernetes SPIRE requirement
+  ansible.builtin.debug:
+    msg: "Standalone SPIRE requires server/agent trust-domain and attestation configuration supplied by the operator."
+  when: certweaver_mode not in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']

@@ -1,0 +1,22 @@
+[Unit]
+Description=CertWeaver OpenBao
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=openbao/openbao:{{ certweaver_adapter_versions.openbao_image }}
+ContainerName=certweaver-openbao
+Volume=/etc/openbao:/openbao/config:Z
+Volume=/var/lib/openbao:/openbao/data:Z
+Volume=/var/log/openbao:/openbao/logs:Z
+PublishPort=8200:8200
+PublishPort=8201:8201
+AddCapability=IPC_LOCK
+Exec=server -config=/openbao/config/openbao.hcl
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target default.target

@@ -1,0 +1,17 @@
+- name: Upgrade RKE2 servers one at a time
+  hosts: cluster_servers
+  become: true
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: rke2_server
+      when: certweaver_mode == 'rke2-ha'
+    - role: k3s_server
+      when: certweaver_mode == 'k3s-ha'
+
+- name: Reconcile certificate platform charts
+  hosts: cluster_bootstrap
+  become: true
+  gather_facts: true
+  roles:
+    - role: cluster_addons

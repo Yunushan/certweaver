@@ -1,0 +1,53 @@
+- name: Verify K3s token file
+  ansible.builtin.assert:
+    that:
+      - certweaver_rke2_token_file is not none
+      - lookup('ansible.builtin.file', certweaver_rke2_token_file, errors='ignore') | trim | length >= 16
+
+- name: Create K3s configuration directory
+  ansible.builtin.file:
+    path: /etc/rancher/k3s
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Download K3s installer
+  ansible.builtin.get_url:
+    url: "{{ certweaver_k3s_install_script_url }}"
+    dest: /root/install-k3s.sh
+    owner: root
+    group: root
+    mode: "0700"
+    checksum: "{{ certweaver_k3s_install_script_checksum | default(omit, true) }}"
+
+- name: Render K3s server configuration
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/k3s/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart K3s
+
+- name: Install pinned K3s server
+  ansible.builtin.command: /root/install-k3s.sh
+  environment:
+    INSTALL_K3S_VERSION: "{{ certweaver_k3s_version }}"
+    INSTALL_K3S_EXEC: server
+  args:
+    creates: /usr/local/bin/k3s
+
+- name: Enable and start K3s
+  ansible.builtin.systemd:
+    name: k3s
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for local K3s API
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 6443
+    delay: 3
+    timeout: 600

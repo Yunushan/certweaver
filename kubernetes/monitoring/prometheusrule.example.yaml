@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: certweaver-certificate-alerts
+  namespace: cert-manager
+spec:
+  groups:
+    - name: certweaver.certificates
+      rules:
+        - alert: CertWeaverCertificateExpiringSoon
+          expr: certmanager_certificate_expiration_timestamp_seconds - time() < 30 * 24 * 3600
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Certificate expires within 30 days"
+        - alert: CertWeaverCertificateNotReady
+          expr: max by (name, namespace) (certmanager_certificate_ready_status{condition="False"}) == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Certificate is not Ready"

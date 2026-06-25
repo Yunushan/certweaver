@@ -1,0 +1,3 @@
+- name: Reject win-acme on Linux playbook
+  ansible.builtin.fail:
+    msg: "Use playbooks/windows.yml and the pki_adapter_windows role for win-acme."

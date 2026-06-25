@@ -1,0 +1,3 @@
+- name: Verify Helm is available for Kubernetes adapter
+  ansible.builtin.command: helm version --short
+  changed_when: false

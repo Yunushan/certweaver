@@ -1,0 +1,70 @@
+---
+deployment:
+  replicas: 3
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: traefik
+service:
+  spec:
+    type: NodePort
+    externalTrafficPolicy: Local
+ports:
+  web:
+    port: 8000
+    expose:
+      default: true
+    exposedPort: 80
+    protocol: TCP
+  websecure:
+    port: 8443
+    expose:
+      default: true
+    exposedPort: 443
+    protocol: TCP
+providers:
+  kubernetesIngress:
+    enabled: true
+  kubernetesGateway:
+    enabled: false
+gatewayClass:
+  enabled: false
+gateway:
+  enabled: false
+log:
+  format: json
+accessLog:
+  enabled: true
+  format: json
+metrics:
+  prometheus:
+    enabled: true
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+globalArguments:
+  - --global.checknewversion=false
+  - --global.sendanonymoususage=false
+additionalArguments:
+  - --api.dashboard=false
+# No certificatesResolvers entry: cert-manager owns certificate lifecycle by default.

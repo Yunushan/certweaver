@@ -1,0 +1,20 @@
+name: Bug report
+description: Report a reproducible CertWeaver defect
+title: "[bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Never include private keys, tokens, DNS credentials, or unredacted kubeconfigs.
+  - type: input
+    id: version
+    attributes:
+      label: CertWeaver version
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description and sanitized reproduction
+    validations:
+      required: true

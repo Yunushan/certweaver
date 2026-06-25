@@ -1,0 +1,75 @@
+- name: Verify RKE2 token file
+  ansible.builtin.assert:
+    that:
+      - certweaver_rke2_token_file is not none
+      - lookup('ansible.builtin.file', certweaver_rke2_token_file, errors='ignore') | trim | length >= 16
+    fail_msg: "Create a strong RKE2 token file on the Ansible controller."
+
+- name: Create RKE2 configuration directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - /etc/rancher/rke2
+    - /etc/rancher/rke2/audit
+    - /var/lib/rancher/rke2/server/logs
+
+- name: Download the RKE2 installer
+  ansible.builtin.get_url:
+    url: "{{ certweaver_rke2_install_script_url }}"
+    dest: /root/install-rke2.sh
+    owner: root
+    group: root
+    mode: "0700"
+    checksum: "{{ certweaver_rke2_install_script_checksum | default(omit, true) }}"
+
+- name: Install pinned RKE2 server
+  ansible.builtin.command: /root/install-rke2.sh
+  environment:
+    INSTALL_RKE2_VERSION: "{{ certweaver_rke2_version }}"
+    INSTALL_RKE2_TYPE: server
+  args:
+    creates: /usr/local/bin/rke2
+
+- name: Install Kubernetes API audit policy
+  ansible.builtin.template:
+    src: audit-policy.yaml.j2
+    dest: /etc/rancher/rke2/audit/audit-policy.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  when: certweaver_rke2_audit_enabled | bool
+  notify: Restart RKE2
+
+- name: Render RKE2 server configuration
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/rke2/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart RKE2
+
+- name: Enable and start RKE2 server
+  ansible.builtin.systemd:
+    name: rke2-server
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Wait for local Kubernetes API
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 6443
+    delay: 3
+    timeout: 600
+
+- name: Wait for local RKE2 supervisor
+  ansible.builtin.wait_for:
+    host: "{{ ansible_host }}"
+    port: 9345
+    delay: 3
+    timeout: 600

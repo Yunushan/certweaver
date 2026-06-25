@@ -1,0 +1,47 @@
+- name: Require pinned EJBCA Community image
+  ansible.builtin.include_tasks: ../_require_version.yml
+  vars:
+    certweaver_required_adapter: ejbca-community-image
+    certweaver_required_version: "{{ certweaver_adapter_versions.ejbca_image }}"
+
+- name: Guard EJBCA demo database in production
+  ansible.builtin.assert:
+    that:
+      - >-
+        certweaver_environment != 'production' or
+        certweaver_adapter_options.get('ejbca-community', {}).get(
+          'externalDatabase', false
+        ) | bool
+    fail_msg: "Production EJBCA requires an explicitly configured external database and reviewed HSM/key design."
+
+- name: Ensure Podman exists for EJBCA
+  ansible.builtin.include_tasks: ../_ensure_podman.yml
+
+- name: Create EJBCA data directory
+  ansible.builtin.file:
+    path: /var/lib/ejbca
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Render EJBCA Quadlet
+  ansible.builtin.template:
+    src: ejbca.container.j2
+    dest: /etc/containers/systemd/certweaver-ejbca.container
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Reload adapter systemd
+
+- name: Activate EJBCA Quadlet when explicitly requested
+  when: certweaver_adapter_start_services | bool
+  block:
+    - name: Reload systemd after EJBCA Quadlet creation
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start EJBCA container service
+      ansible.builtin.systemd:
+        name: certweaver-ejbca.service
+        enabled: true
+        state: started

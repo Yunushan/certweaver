@@ -1,0 +1,23 @@
+certweaver_adapter_root: /opt/certweaver/adapters
+certweaver_adapter_install_mode: auto
+certweaver_adapter_versions:
+  step_ca: ""
+  step_ca_chart: ""
+  openbao_chart: ""
+  openbao_image: ""
+  acme_sh_ref: ""
+  ejbca_image: ""
+  lego: ""
+  cfssl: ""
+  dehydrated_ref: ""
+  spire_chart: ""
+  boulder_ref: ""
+  caddy: ""
+  traefik: ""
+  lemur_ref: ""
+certweaver_adapter_checksums: {}
+certweaver_adapter_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+certweaver_adapter_start_services: false
+certweaver_adapter_options: {}

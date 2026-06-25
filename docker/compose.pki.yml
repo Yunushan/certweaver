@@ -1,0 +1,57 @@
+name: certweaver-pki
+services:
+  step-ca:
+    profiles: [step-ca]
+    image: smallstep/step-ca:${STEP_CA_VERSION:?pin STEP_CA_VERSION}
+    restart: unless-stopped
+    ports: ["9000:9000"]
+    volumes:
+      - step-ca-data:/home/step
+    env_file: [./secrets/step-ca.env]
+
+  openbao:
+    profiles: [openbao]
+    image: openbao/openbao:${OPENBAO_VERSION:?pin OPENBAO_VERSION}
+    restart: unless-stopped
+    cap_add: [IPC_LOCK]
+    ports: ["8200:8200"]
+    volumes:
+      - openbao-data:/openbao/data
+      - ./openbao:/openbao/config:ro
+    command: server -config=/openbao/config/openbao.hcl
+
+  ejbca:
+    profiles: [ejbca]
+    image: keyfactor/ejbca-ce:${EJBCA_VERSION:?pin EJBCA_VERSION}
+    restart: unless-stopped
+    ports: ["8443:8443"]
+    env_file: [./secrets/ejbca.env]
+    volumes:
+      - ejbca-data:/mnt/persistent
+
+  caddy:
+    profiles: [caddy]
+    image: caddy:${CADDY_VERSION:?pin CADDY_VERSION}
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+  traefik:
+    profiles: [traefik]
+    image: traefik:${TRAEFIK_VERSION:?pin TRAEFIK_VERSION}
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - traefik-data:/data
+
+volumes:
+  step-ca-data: {}
+  openbao-data: {}
+  ejbca-data: {}
+  caddy-data: {}
+  caddy-config: {}
+  traefik-data: {}

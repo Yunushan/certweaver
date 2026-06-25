@@ -1,0 +1,20 @@
+token: {{ lookup('ansible.builtin.file', certweaver_rke2_token_file) | trim | to_json }}
+{% if inventory_hostname in groups.get('cluster_bootstrap', []) %}
+cluster-init: true
+{% else %}
+server: https://{{ certweaver_vip }}:{{ certweaver_registration_front_port }}
+{% endif %}
+tls-san:
+  - {{ certweaver_vip | to_json }}
+{% if certweaver_vip_dns | length > 0 %}
+  - {{ certweaver_vip_dns | to_json }}
+{% endif %}
+write-kubeconfig-mode: "0640"
+secrets-encryption: {{ certweaver_k3s_secrets_encryption | bool | lower }}
+selinux: {{ certweaver_k3s_selinux | bool | lower }}
+protect-kernel-defaults: {{ certweaver_k3s_protect_kernel_defaults | bool | lower }}
+node-name: {{ inventory_hostname | to_json }}
+disable:
+{% for component in certweaver_k3s_disable_components %}
+  - {{ component | to_json }}
+{% endfor %}

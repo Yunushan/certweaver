@@ -1,0 +1,10 @@
+replicaCount: 2
+app:
+  logFormat: json
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi

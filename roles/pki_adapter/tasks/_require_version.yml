@@ -1,0 +1,8 @@
+- name: Require a pinned adapter version
+  ansible.builtin.assert:
+    that:
+      - certweaver_required_version | default('') | length > 0
+      - certweaver_required_version != 'latest'
+    fail_msg: >-
+      Adapter {{ certweaver_required_adapter }} requires an explicit pinned version in
+      certweaver_adapter_versions for repeatable deployment.

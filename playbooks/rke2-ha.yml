@@ -1,0 +1,38 @@
+- name: Prepare all RKE2 HA servers
+  hosts: cluster_servers
+  become: true
+  gather_facts: true
+  roles:
+    - role: common
+      tags: [common]
+    - role: haproxy_keepalived
+      when: certweaver_load_balancer_enabled | bool
+      tags: [load-balancer]
+
+- name: Bootstrap the first RKE2 server
+  hosts: cluster_bootstrap
+  become: true
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: rke2_server
+      tags: [rke2]
+
+- name: Join remaining RKE2 servers serially
+  hosts: cluster_joiners
+  become: true
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: rke2_server
+      tags: [rke2]
+
+- name: Install cluster certificate platform
+  hosts: cluster_bootstrap
+  become: true
+  gather_facts: true
+  roles:
+    - role: cluster_addons
+      tags: [addons]
+    - role: pki_adapter
+      tags: [adapters]

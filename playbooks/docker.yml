@@ -1,0 +1,9 @@
+- name: Install containerized certificate and PKI adapters
+  hosts: pki_linux
+  become: true
+  gather_facts: true
+  vars:
+    certweaver_adapter_install_mode: docker
+  roles:
+    - role: pki_adapter
+      tags: [adapters]

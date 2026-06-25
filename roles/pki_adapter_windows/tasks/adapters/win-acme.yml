@@ -1,0 +1,24 @@
+- name: Require pinned win-acme release URL and version
+  ansible.builtin.assert:
+    that:
+      - certweaver_win_acme_version | length > 0
+      - certweaver_win_acme_url | length > 0
+    fail_msg: "Set a reviewed win-acme version and official release URL."
+
+- name: Create CertWeaver Windows directories
+  ansible.windows.win_file:
+    path: '{{ certweaver_windows_adapter_root }}\win-acme'
+    state: directory
+
+- name: Download win-acme archive
+  ansible.windows.win_get_url:
+    url: "{{ certweaver_win_acme_url }}"
+    dest: '{{ certweaver_windows_adapter_root }}\win-acme.zip'
+    checksum: "{{ certweaver_win_acme_checksum | default(omit, true) }}"
+    checksum_algorithm: sha256
+
+- name: Expand win-acme archive
+  community.windows.win_unzip:
+    src: '{{ certweaver_windows_adapter_root }}\win-acme.zip'
+    dest: '{{ certweaver_windows_adapter_root }}\win-acme'
+    creates: '{{ certweaver_windows_adapter_root }}\win-acme\wacs.exe'

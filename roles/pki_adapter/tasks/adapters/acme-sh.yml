@@ -1,0 +1,33 @@
+- name: Require pinned acme.sh Git ref
+  ansible.builtin.include_tasks: ../_require_version.yml
+  vars:
+    certweaver_required_adapter: acme-sh
+    certweaver_required_version: "{{ certweaver_adapter_versions.acme_sh_ref }}"
+
+- name: Install acme.sh dependencies
+  ansible.builtin.dnf:
+    name: [git, openssl, socat, cronie]
+    state: present
+
+- name: Clone pinned acme.sh source
+  ansible.builtin.git:
+    repo: https://github.com/acmesh-official/acme.sh.git
+    dest: "{{ certweaver_adapter_root }}/acme.sh"
+    version: "{{ certweaver_adapter_versions.acme_sh_ref }}"
+    update: false
+
+- name: Install acme.sh for root
+  ansible.builtin.command:
+    argv:
+      - "{{ certweaver_adapter_root }}/acme.sh/acme.sh"
+      - --install
+      - --home
+      - /opt/acme.sh
+      - --config-home
+      - /etc/acme.sh
+      - --cert-home
+      - /var/lib/acme.sh/certs
+      - --accountemail
+      - "{{ certweaver_adapter_options.get('acme-sh', {}).get('accountEmail', 'REPLACE@example.invalid') }}"
+  args:
+    creates: /opt/acme.sh/acme.sh

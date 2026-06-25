@@ -1,0 +1,327 @@
+apiVersion: certweaver.io/v1alpha1
+kind: AdapterRegistry
+adapters:
+  - slug: cert-manager
+    name: cert-manager
+    category: kubernetes-controller
+    maturity: production
+    license: Apache-2.0
+    targets:
+      - kubernetes
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+    upstream: https://github.com/cert-manager/cert-manager
+    notes: Primary Kubernetes certificate lifecycle controller.
+    ansibleTask: roles/pki_adapter/tasks/adapters/cert-manager.yml
+  - slug: step-ca
+    name: Smallstep step-ca
+    category: private-ca
+    maturity: production
+    license: Apache-2.0
+    targets:
+      - kubernetes
+      - linux
+      - docker
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+      - standalone
+      - docker
+      - raw
+    upstream: https://github.com/smallstep/certificates
+    notes: Private ACME/X.509/SSH CA; production ceremonies and key protection remain
+      operator responsibilities.
+    ansibleTask: roles/pki_adapter/tasks/adapters/step-ca.yml
+  - slug: openbao-pki
+    name: OpenBao PKI
+    category: secrets-pki
+    maturity: production
+    license: MPL-2.0
+    targets:
+      - kubernetes
+      - linux
+      - docker
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+      - standalone
+      - docker
+      - raw
+    upstream: https://github.com/openbao/openbao
+    notes: Dynamic PKI plus secrets management; requires storage, unseal, HA, and
+      audit design.
+    ansibleTask: roles/pki_adapter/tasks/adapters/openbao-pki.yml
+  - slug: acme-sh
+    name: acme.sh
+    category: acme-client
+    maturity: production
+    license: GPL-3.0
+    targets:
+      - linux
+      - docker
+    modes:
+      - standalone
+      - docker
+      - raw
+      - rke2-ha
+      - k3s-ha
+    upstream: https://github.com/acmesh-official/acme.sh
+    notes: Lightweight shell ACME client for hosts and edge services.
+    ansibleTask: roles/pki_adapter/tasks/adapters/acme-sh.yml
+  - slug: certbot
+    name: Certbot
+    category: acme-client
+    maturity: production
+    license: Apache-2.0
+    targets:
+      - linux
+      - docker
+    modes:
+      - standalone
+      - docker
+      - raw
+      - rke2-ha
+      - k3s-ha
+    upstream: https://github.com/certbot/certbot
+    notes: Widely documented ACME client; deployment hooks are service-specific.
+    ansibleTask: roles/pki_adapter/tasks/adapters/certbot.yml
+  - slug: ejbca-community
+    name: EJBCA Community
+    category: enterprise-ca
+    maturity: advanced
+    license: LGPL-2.1-or-later
+    targets:
+      - kubernetes
+      - docker
+      - linux
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+      - standalone
+      - docker
+    upstream: https://github.com/Keyfactor/ejbca-ce
+    notes: Full CA platform; production architecture normally needs external database,
+      HSM, ceremony, and review.
+    ansibleTask: roles/pki_adapter/tasks/adapters/ejbca-community.yml
+  - slug: lego
+    name: lego
+    category: acme-client
+    maturity: production
+    license: MIT
+    targets:
+      - linux
+      - docker
+    modes:
+      - standalone
+      - docker
+      - raw
+      - rke2-ha
+      - k3s-ha
+    upstream: https://github.com/go-acme/lego
+    notes: Go ACME client and library with broad DNS provider support.
+    ansibleTask: roles/pki_adapter/tasks/adapters/lego.yml
+  - slug: dogtag-pki
+    name: Dogtag PKI
+    category: enterprise-ca
+    maturity: advanced
+    license: GPL-2.0-or-later
+    targets:
+      - linux
+      - docker
+    modes:
+      - standalone
+      - docker
+      - raw
+    upstream: https://github.com/dogtagpki/pki
+    notes: Full CA/KRA/OCSP stack; instance creation is intentionally separate from
+      package installation.
+    ansibleTask: roles/pki_adapter/tasks/adapters/dogtag-pki.yml
+  - slug: freeipa-certmonger
+    name: FreeIPA + certmonger
+    category: identity-pki
+    maturity: production
+    license: GPL-3.0-or-later
+    targets:
+      - linux
+    modes:
+      - standalone
+      - raw
+    upstream: https://github.com/freeipa/freeipa
+    notes: Identity-integrated host/service certificate enrollment; dedicated DNS/host
+      planning is required.
+    ansibleTask: roles/pki_adapter/tasks/adapters/freeipa-certmonger.yml
+  - slug: cfssl
+    name: CFSSL
+    category: pki-toolkit
+    maturity: advanced
+    license: BSD-2-Clause
+    targets:
+      - linux
+      - docker
+    modes:
+      - standalone
+      - docker
+      - raw
+    upstream: https://github.com/cloudflare/cfssl
+    notes: PKI/TLS toolkit and API; operator supplies policy, storage, and HA design.
+    ansibleTask: roles/pki_adapter/tasks/adapters/cfssl.yml
+  - slug: trust-manager
+    name: trust-manager
+    category: trust-distribution
+    maturity: production
+    license: Apache-2.0
+    targets:
+      - kubernetes
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+    upstream: https://github.com/cert-manager/trust-manager
+    notes: Distributes trusted CA bundles; complements but does not issue certificates.
+    ansibleTask: roles/pki_adapter/tasks/adapters/trust-manager.yml
+  - slug: cert-manager-csi-driver
+    name: cert-manager CSI Driver
+    category: workload-certificate
+    maturity: production
+    license: Apache-2.0
+    targets:
+      - kubernetes
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+    upstream: https://github.com/cert-manager/csi-driver
+    notes: Mounts workload certificates without normal Kubernetes TLS Secrets; suitability
+      depends on persistence/sharing needs.
+    ansibleTask: roles/pki_adapter/tasks/adapters/cert-manager-csi-driver.yml
+  - slug: dehydrated
+    name: dehydrated
+    category: acme-client
+    maturity: advanced
+    license: MIT
+    targets:
+      - linux
+      - docker
+    modes:
+      - standalone
+      - docker
+      - raw
+      - rke2-ha
+      - k3s-ha
+    upstream: https://github.com/dehydrated-io/dehydrated
+    notes: Minimal shell ACME client with hook-based deployment.
+    ansibleTask: roles/pki_adapter/tasks/adapters/dehydrated.yml
+  - slug: win-acme
+    name: win-acme
+    category: windows-acme-client
+    maturity: production
+    license: GPL-3.0
+    targets:
+      - windows
+    modes:
+      - windows
+    upstream: https://github.com/win-acme/win-acme
+    notes: Windows ACME client for IIS and scripted installations.
+    ansibleTask: roles/pki_adapter/tasks/adapters/win-acme.yml
+  - slug: posh-acme
+    name: Posh-ACME
+    category: windows-acme-client
+    maturity: production
+    license: MIT
+    targets:
+      - windows
+    modes:
+      - windows
+    upstream: https://github.com/rmbolger/Posh-ACME
+    notes: PowerShell ACME module; certificate deployment remains scriptable and service-specific.
+    ansibleTask: roles/pki_adapter/tasks/adapters/posh-acme.yml
+  - slug: spire
+    name: SPIRE / SPIFFE
+    category: workload-identity
+    maturity: production
+    license: Apache-2.0
+    targets:
+      - kubernetes
+      - linux
+      - docker
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+      - standalone
+      - docker
+    upstream: https://github.com/spiffe/spire
+    notes: Workload identity and short-lived X.509 SVIDs rather than public web certificates.
+    ansibleTask: roles/pki_adapter/tasks/adapters/spire.yml
+  - slug: boulder
+    name: Boulder
+    category: acme-ca
+    maturity: lab-only
+    license: MPL-2.0
+    targets:
+      - docker
+      - linux
+    modes:
+      - docker
+      - standalone
+      - raw
+    upstream: https://github.com/letsencrypt/boulder
+    notes: "Let\u2019s Encrypt CA software; guarded for lab/integration testing, not\
+      \ presented as a turnkey enterprise private CA."
+    ansibleTask: roles/pki_adapter/tasks/adapters/boulder.yml
+  - slug: caddy-auto-https
+    name: Caddy Automatic HTTPS
+    category: edge-auto-tls
+    maturity: production
+    license: Apache-2.0
+    targets:
+      - linux
+      - docker
+    modes:
+      - standalone
+      - docker
+      - raw
+      - rke2-ha
+      - k3s-ha
+    upstream: https://github.com/caddyserver/caddy
+    notes: Web server/reverse proxy with built-in certificate automation.
+    ansibleTask: roles/pki_adapter/tasks/adapters/caddy-auto-https.yml
+  - slug: traefik-acme
+    name: Traefik ACME Resolver
+    category: edge-auto-tls
+    maturity: production
+    license: MIT
+    targets:
+      - kubernetes
+      - linux
+      - docker
+    modes:
+      - rke2-ha
+      - k3s-ha
+      - existing-kubernetes
+      - standalone
+      - docker
+      - raw
+    upstream: https://github.com/traefik/traefik
+    notes: Ingress/reverse proxy with ACME; disable its resolver when cert-manager
+      owns the same certificates.
+    ansibleTask: roles/pki_adapter/tasks/adapters/traefik-acme.yml
+  - slug: lemur
+    name: Lemur
+    category: certificate-inventory
+    maturity: legacy
+    license: Apache-2.0
+    targets:
+      - docker
+      - linux
+    modes:
+      - docker
+      - standalone
+    upstream: https://github.com/Netflix/lemur
+    notes: Certificate inventory/broker with maintenance risk; requires explicit acknowledgement.
+    ansibleTask: roles/pki_adapter/tasks/adapters/lemur.yml

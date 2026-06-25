@@ -1,0 +1,96 @@
+- name: Resolve OpenBao install mode
+  ansible.builtin.set_fact:
+    certweaver_openbao_mode: >-
+      {{ certweaver_adapter_options.get('openbao-pki', {}).get('installMode',
+         'kubernetes' if certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes'] else 'docker') }}
+
+- name: Install OpenBao Helm release
+  when: certweaver_openbao_mode == 'kubernetes'
+  block:
+    - name: Require pinned OpenBao chart version
+      ansible.builtin.include_tasks: ../_require_version.yml
+      vars:
+        certweaver_required_adapter: openbao-chart
+        certweaver_required_version: "{{ certweaver_adapter_versions.openbao_chart }}"
+
+    - name: Add OpenBao Helm repository
+      ansible.builtin.command:
+        argv: [helm, repo, add, openbao, https://openbao.github.io/openbao-helm, --force-update]
+      register: certweaver_openbao_repo
+      changed_when: "'has been added' in certweaver_openbao_repo.stdout"
+
+    - name: Install OpenBao
+      ansible.builtin.command:
+        argv:
+          - helm
+          - upgrade
+          - --install
+          - openbao
+          - openbao/openbao
+          - --version
+          - "{{ certweaver_adapter_versions.openbao_chart }}"
+          - --namespace
+          - openbao
+          - --create-namespace
+          - --values
+          - "{{ certweaver_adapter_options.get('openbao-pki', {}).get('valuesFile', '/etc/certweaver/openbao-values.yaml') }}"
+          - --wait
+          - --timeout
+          - 15m
+      register: certweaver_openbao_helm
+      changed_when: "'has been upgraded' in certweaver_openbao_helm.stdout or 'has been installed' in certweaver_openbao_helm.stdout"
+
+- name: Prepare OpenBao Podman Quadlet
+  when: certweaver_openbao_mode == 'docker'
+  block:
+    - name: Require pinned OpenBao image tag
+      ansible.builtin.include_tasks: ../_require_version.yml
+      vars:
+        certweaver_required_adapter: openbao-image
+        certweaver_required_version: "{{ certweaver_adapter_versions.openbao_image }}"
+
+    - name: Ensure Podman exists
+      ansible.builtin.include_tasks: ../_ensure_podman.yml
+
+    - name: Create OpenBao directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - /etc/openbao
+        - /var/lib/openbao
+        - /var/log/openbao
+
+    - name: Render OpenBao configuration
+      ansible.builtin.template:
+        src: openbao.hcl.j2
+        dest: /etc/openbao/openbao.hcl
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Render OpenBao Quadlet
+      ansible.builtin.template:
+        src: openbao.container.j2
+        dest: /etc/containers/systemd/certweaver-openbao.container
+        owner: root
+        group: root
+        mode: "0600"
+      notify: Reload adapter systemd
+
+- name: Activate OpenBao Quadlet when explicitly requested
+  when:
+    - certweaver_openbao_mode == 'docker'
+    - certweaver_adapter_start_services | bool
+  block:
+    - name: Reload systemd after OpenBao Quadlet creation
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start OpenBao container service
+      ansible.builtin.systemd:
+        name: certweaver-openbao.service
+        enabled: true
+        state: started

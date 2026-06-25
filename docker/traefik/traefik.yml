@@ -1,0 +1,19 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+api:
+  dashboard: false
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+log:
+  format: json
+accessLog:
+  format: json
+# Add a certificatesResolver only when Traefik, not cert-manager, owns these certificates.

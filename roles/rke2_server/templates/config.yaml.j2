@@ -1,0 +1,39 @@
+token: {{ lookup('ansible.builtin.file', certweaver_rke2_token_file) | trim | to_json }}
+{% if inventory_hostname in groups.get('cluster_joiners', []) %}
+server: https://{{ certweaver_vip }}:{{ certweaver_registration_front_port }}
+{% endif %}
+tls-san:
+  - {{ certweaver_vip | to_json }}
+{% if certweaver_vip_dns | length > 0 %}
+  - {{ certweaver_vip_dns | to_json }}
+{% endif %}
+write-kubeconfig-mode: {{ certweaver_rke2_write_kubeconfig_mode | to_json }}
+cni: {{ certweaver_rke2_cni | to_json }}
+secrets-encryption: {{ certweaver_rke2_secrets_encryption | bool | lower }}
+selinux: {{ certweaver_rke2_selinux | bool | lower }}
+protect-kernel-defaults: {{ certweaver_rke2_protect_kernel_defaults | bool | lower }}
+node-name: {{ inventory_hostname | to_json }}
+node-label:
+  - "node.certweaver.io/platform=true"
+  - "node.certweaver.io/role=server"
+{% if certweaver_rke2_disable_components | length > 0 %}
+disable:
+{% for component in certweaver_rke2_disable_components %}
+  - {{ component | to_json }}
+{% endfor %}
+{% endif %}
+{% if certweaver_rke2_profile | length > 0 %}
+profile: {{ certweaver_rke2_profile | to_json }}
+{% endif %}
+{% if certweaver_rke2_etcd_snapshot_enabled | bool %}
+etcd-snapshot-schedule-cron: {{ certweaver_rke2_etcd_snapshot_schedule | to_json }}
+etcd-snapshot-retention: {{ certweaver_rke2_etcd_snapshot_retention }}
+{% endif %}
+{% if certweaver_rke2_audit_enabled | bool %}
+kube-apiserver-arg:
+  - "audit-policy-file=/etc/rancher/rke2/audit/audit-policy.yaml"
+  - "audit-log-path=/var/lib/rancher/rke2/server/logs/audit.log"
+  - "audit-log-maxage=30"
+  - "audit-log-maxbackup=10"
+  - "audit-log-maxsize=100"
+{% endif %}

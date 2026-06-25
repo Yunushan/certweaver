@@ -1,0 +1,68 @@
+apiVersion: certweaver.io/v1alpha1
+kind: CertWeaverDeployment
+metadata:
+  name: certweaver-standalone
+  labels:
+    owner: platform-security
+    location: primary-datacenter
+spec:
+  mode: standalone
+  environment: staging
+  platform:
+    os: rocky9
+    nodes:
+      - name: pki-edge-01
+        address: 10.20.40.11
+        sshUser: rocky
+  versions:
+    rke2: v1.33.12+rke2r2
+    k3s: v1.33.12+k3s1
+    helm: v3.21.2
+    certManager: v1.20.2
+    approverPolicy: v0.26.0
+    trustManager: v0.23.0
+    csiDriver: v0.15.0
+    traefikChart: 41.0.0
+    helmChecksums:
+      amd64: sha256:0a745198de24545d0055cd8414bc8d2ba10363ef5f5d38369ea1b399671cc083
+      arm64: sha256:bbd559fc0547f1d96ccbc68fe4f1cb98f01808f36538139e669369066b781267
+  secrets: {}
+  addons: {}
+  adapters:
+    enabled:
+      - acme-sh
+      - certbot
+      - lego
+      - dehydrated
+      - caddy-auto-https
+    acknowledge: []
+    versions:
+      step_ca: ''
+      step_ca_chart: ''
+      openbao_chart: ''
+      openbao_image: ''
+      acme_sh_ref: REPLACE_WITH_GIT_TAG
+      certbot: ''
+      ejbca_image: ''
+      lego: REPLACE_WITH_VERSION
+      dogtag: ''
+      freeipa: ''
+      cfssl: ''
+      dehydrated_ref: REPLACE_WITH_GIT_TAG
+      spire_chart: ''
+      boulder_ref: ''
+      caddy: REPLACE_WITH_VERSION
+      traefik: ''
+      lemur_ref: ''
+      win_acme: ''
+      posh_acme: ''
+    checksums: {}
+    options:
+      traefik-acme:
+        resolverEnabled: false
+      step-ca:
+        installMode: kubernetes
+      openbao-pki:
+        installMode: kubernetes
+    installMode: standalone
+    startServices: false

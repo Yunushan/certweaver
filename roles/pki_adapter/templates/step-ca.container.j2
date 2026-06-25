@@ -1,0 +1,21 @@
+[Unit]
+Description=CertWeaver Smallstep step-ca
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=smallstep/step-ca:{{ certweaver_adapter_versions.step_ca }}
+ContainerName=certweaver-step-ca
+Volume=/var/lib/step-ca:/home/step:Z
+PublishPort={{ certweaver_adapter_options.get('step-ca', {}).get('port', 9000) }}:9000
+Environment=DOCKER_STEPCA_INIT_NAME={{ certweaver_adapter_options.get('step-ca', {}).get('caName', 'CertWeaver Internal CA') }}
+Environment=DOCKER_STEPCA_INIT_DNS_NAMES={{ certweaver_adapter_options.get('step-ca', {}).get('dnsNames', 'localhost') }}
+Environment=DOCKER_STEPCA_INIT_REMOTE_MANAGEMENT=false
+EnvironmentFile={{ certweaver_adapter_options.get('step-ca', {}).get('environmentFile', '/etc/certweaver/secrets/step-ca.env') }}
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target default.target

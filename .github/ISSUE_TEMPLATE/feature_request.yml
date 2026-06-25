@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a profile, adapter, policy, or workflow improvement
+title: "[feature] "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use case and constraints
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true

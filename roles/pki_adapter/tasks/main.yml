@@ -1,0 +1,24 @@
+- name: Create CertWeaver adapter root
+  ansible.builtin.file:
+    path: "{{ certweaver_adapter_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Resolve adapter architecture
+  ansible.builtin.set_fact:
+    certweaver_adapter_arch: "{{ certweaver_adapter_arch_map.get(ansible_architecture, 'amd64') }}"
+
+- name: Validate selected Linux adapters
+  ansible.builtin.assert:
+    that:
+      - item not in ['win-acme', 'posh-acme']
+    fail_msg: "{{ item }} must be deployed through playbooks/windows.yml."
+  loop: "{{ certweaver_enabled_adapters | default([]) }}"
+
+- name: Execute selected PKI adapter tasks
+  ansible.builtin.include_tasks: "adapters/{{ item }}.yml"
+  loop: "{{ certweaver_enabled_adapters | default([]) }}"
+  loop_control:
+    label: "{{ item }}"

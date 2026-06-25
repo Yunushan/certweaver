@@ -1,0 +1,33 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e '.[dev]'
+      - run: ansible-galaxy collection install -r collections/requirements.yml
+      - run: make lint
+      - run: make test
+      - run: ./scripts/validate-all.sh
+      - run: mkdir -p dist
+      - run: >-
+          git archive --format=tar.gz
+          --prefix=certweaver-${GITHUB_REF_NAME}/
+          -o dist/certweaver-${GITHUB_REF_NAME}.tar.gz HEAD
+      - run: >-
+          git archive --format=zip
+          --prefix=certweaver-${GITHUB_REF_NAME}/
+          -o dist/certweaver-${GITHUB_REF_NAME}.zip HEAD
+      - run: cd dist && sha256sum * > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*

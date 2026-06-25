@@ -1,0 +1,24 @@
+---
+certweaver_common_packages:
+  - bash-completion
+  - chrony
+  - curl
+  - firewalld
+  - iproute
+  - jq
+  - policycoreutils-python-utils
+  - tar
+  - unzip
+certweaver_manage_firewalld: true
+certweaver_enforce_rocky9: true
+# Empty management CIDRs are rejected for production HA when CertWeaver manages firewalld.
+certweaver_management_cidrs: []
+certweaver_ingress_cidrs:
+  - 0.0.0.0/0
+certweaver_cluster_internal_tcp_ports:
+  - 2379-2380
+  - 6443
+  - 9345
+  - 10250
+certweaver_cluster_internal_udp_ports:
+  - 8472

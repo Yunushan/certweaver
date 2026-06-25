@@ -1,0 +1,14 @@
+- name: Install Podman for container adapter
+  ansible.builtin.dnf:
+    name:
+      - podman
+      - containernetworking-plugins
+    state: present
+
+- name: Create systemd Quadlet directory
+  ansible.builtin.file:
+    path: /etc/containers/systemd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"

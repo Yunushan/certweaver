@@ -1,0 +1,43 @@
+- name: Verify Kubernetes Traefik integration
+  when: certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
+  block:
+    - name: Ensure Traefik add-on is enabled
+      ansible.builtin.assert:
+        that:
+          - certweaver_addons.traefik.enabled | default(false) | bool
+        fail_msg: "Enable spec.addons.traefik for the Kubernetes Traefik adapter."
+
+    - name: Prevent duplicate ACME ownership by default
+      ansible.builtin.assert:
+        that:
+          - not certweaver_adapter_options.get('traefik-acme', {}).get('resolverEnabled', false) | bool
+        fail_msg: "Do not enable Traefik ACME for certificates already managed by cert-manager."
+
+    - name: Query Traefik deployment
+      ansible.builtin.command: >-
+        kubectl --kubeconfig {{ certweaver_kubeconfig_path | default('/root/.kube/config') }}
+        -n traefik get deployment traefik
+      changed_when: false
+
+- name: Install standalone Traefik binary
+  when: certweaver_mode in ['standalone', 'raw', 'docker']
+  block:
+    - name: Require pinned Traefik version
+      ansible.builtin.include_tasks: ../_require_version.yml
+      vars:
+        certweaver_required_adapter: traefik
+        certweaver_required_version: "{{ certweaver_adapter_versions.traefik }}"
+
+    - name: Download Traefik archive
+      ansible.builtin.unarchive:
+        src: >-
+          {{ 'https://github.com/traefik/traefik/releases/download/v' ~
+             certweaver_adapter_versions.traefik ~ '/traefik_v' ~
+             certweaver_adapter_versions.traefik ~ '_linux_' ~
+             certweaver_adapter_arch ~ '.tar.gz' }}
+        dest: /usr/local/bin
+        remote_src: true
+        include: [traefik]
+        owner: root
+        group: root
+        mode: "0755"

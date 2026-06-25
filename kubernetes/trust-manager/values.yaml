@@ -1,0 +1,36 @@
+---
+# Validated against the trust-manager v0.23.0 chart value schema.
+replicaCount: 2
+app:
+  logFormat: json
+  logLevel: 2
+  trust:
+    namespace: cert-manager-trust
+  webhook:
+    tls:
+      approverPolicy:
+        enabled: true
+        certManagerNamespace: cert-manager
+      timeoutSeconds: 10
+secretTargets:
+  enabled: false
+  authorizedSecretsAll: false
+resources:
+  requests:
+    cpu: 20m
+    memory: 64Mi
+  limits:
+    cpu: 300m
+    memory: 256Mi
+securityContext:
+  seccompProfileEnabled: true
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/instance: trust-manager

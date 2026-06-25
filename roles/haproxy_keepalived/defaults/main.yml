@@ -1,0 +1,7 @@
+certweaver_haproxy_stats_enabled: true
+certweaver_haproxy_stats_port: 8404
+certweaver_haproxy_connect_timeout: 5s
+certweaver_haproxy_client_timeout: 50s
+certweaver_haproxy_server_timeout: 50s
+certweaver_keepalived_advert_int: 1
+certweaver_keepalived_preempt_delay: 30

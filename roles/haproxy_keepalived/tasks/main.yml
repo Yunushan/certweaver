@@ -1,0 +1,54 @@
+- name: Verify load-balancer prerequisites
+  ansible.builtin.assert:
+    that:
+      - certweaver_vip | length > 0
+      - certweaver_vip_interface | length > 0
+      - certweaver_keepalived_auth_file is not none
+      - lookup('ansible.builtin.file', certweaver_keepalived_auth_file, errors='ignore') | length >= 8
+    fail_msg: "VIP, interface, and an 8+ character Keepalived auth file are required."
+
+- name: Install HAProxy and Keepalived
+  ansible.builtin.dnf:
+    name:
+      - haproxy
+      - keepalived
+    state: present
+
+- name: Install HAProxy health check for Keepalived
+  ansible.builtin.copy:
+    src: check-haproxy.sh
+    dest: /usr/local/sbin/check-certweaver-haproxy
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render HAProxy configuration
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    owner: root
+    group: root
+    mode: "0640"
+    validate: /usr/sbin/haproxy -c -f %s
+  notify: Restart HAProxy
+
+- name: Render Keepalived configuration
+  ansible.builtin.template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart Keepalived
+
+- name: Enable HAProxy
+  ansible.builtin.systemd:
+    name: haproxy
+    enabled: true
+    state: started
+
+- name: Enable Keepalived
+  ansible.builtin.systemd:
+    name: keepalived
+    enabled: true
+    state: started

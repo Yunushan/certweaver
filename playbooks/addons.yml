@@ -1,0 +1,9 @@
+- name: Install CertWeaver add-ons into an existing Kubernetes cluster
+  hosts: cluster_bootstrap:pki_linux
+  become: true
+  gather_facts: true
+  roles:
+    - role: cluster_addons
+      tags: [addons]
+    - role: pki_adapter
+      tags: [adapters]

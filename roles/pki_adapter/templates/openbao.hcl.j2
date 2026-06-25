@@ -1,0 +1,14 @@
+ui = true
+disable_mlock = false
+listener "tcp" {
+  address = "0.0.0.0:8200"
+  tls_disable = false
+  tls_cert_file = "/openbao/config/tls/tls.crt"
+  tls_key_file = "/openbao/config/tls/tls.key"
+}
+storage "raft" {
+  path = "/openbao/data"
+  node_id = "{{ inventory_hostname }}"
+}
+api_addr = "{{ certweaver_adapter_options.get('openbao-pki', {}).get('apiAddress', 'https://' + ansible_host + ':8200') }}"
+cluster_addr = "https://{{ ansible_host }}:8201"

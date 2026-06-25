@@ -1,0 +1,8 @@
+{
+  email pki-operations@example.invalid
+  admin off
+}
+
+example.invalid {
+  respond "Replace this example before use" 200
+}

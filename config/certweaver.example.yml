@@ -1,0 +1,149 @@
+apiVersion: certweaver.io/v1alpha1
+kind: CertWeaverDeployment
+metadata:
+  name: isbak-pki-prod
+  labels:
+    owner: platform-security
+    location: primary-datacenter
+spec:
+  mode: rke2-ha
+  environment: production
+
+  platform:
+    os: rocky9
+    nodes:
+      - name: rke2-01
+        address: 10.20.30.11
+        sshUser: rocky
+        interface: ens192
+        keepalivedPriority: 150
+      - name: rke2-02
+        address: 10.20.30.12
+        sshUser: rocky
+        interface: ens192
+        keepalivedPriority: 140
+      - name: rke2-03
+        address: 10.20.30.13
+        sshUser: rocky
+        interface: ens192
+        keepalivedPriority: 130
+    vip:
+      address: 10.20.30.50
+      dnsName: pki-api.example.internal
+      interface: ens192
+      prefixLength: 24
+      ports:
+        api: 8443
+        registration: 9346
+        http: 80
+        https: 443
+    network:
+      manageFirewalld: true
+      managementCidrs:
+        - 10.20.30.0/24
+      ingressCidrs:
+        - 0.0.0.0/0
+    loadBalancer:
+      enabled: true
+      provider: haproxy-keepalived
+      colocated: true
+      virtualRouterId: 51
+      ingressNodePorts:
+        http: 30080
+        https: 30443
+
+  versions:
+    # Pin and review versions before every production rollout.
+    rke2: v1.33.12+rke2r2
+    k3s: v1.33.12+k3s1
+    helm: v3.21.2
+    helmChecksums:
+      amd64: sha256:0a745198de24545d0055cd8414bc8d2ba10363ef5f5d38369ea1b399671cc083
+      arm64: sha256:bbd559fc0547f1d96ccbc68fe4f1cb98f01808f36538139e669369066b781267
+    certManager: v1.20.2
+    approverPolicy: v0.26.0
+    trustManager: v0.23.0
+    csiDriver: v0.15.0
+    traefikChart: 41.0.0
+
+  secrets:
+    rke2TokenFile: secrets/rke2-token
+    keepalivedAuthFile: secrets/keepalived-auth
+
+  rke2:
+    cni: canal
+    selinux: true
+    secretsEncryption: true
+    auditPolicy: true
+    protectKernelDefaults: false  # Enable only after applying the matching CIS sysctl profile.
+    disablePackagedIngress: true
+    etcdSnapshots:
+      enabled: true
+      scheduleCron: "0 */6 * * *"
+      retention: 28
+
+  addons:
+    certManager:
+      enabled: true
+      disableAutoApproval: true
+      highAvailability: true
+      networkPolicy: true
+      prometheus: true
+    approverPolicy:
+      enabled: true
+    trustManager:
+      enabled: true
+      dedicatedNamespace: cert-manager-trust
+      secretTargets: false
+    csiDriver:
+      enabled: false
+    traefik:
+      enabled: true
+      acmeResolverEnabled: false
+    issuers:
+      letsEncryptStaging:
+        enabled: false
+        email: pki-operations@example.invalid
+      letsEncryptProduction:
+        enabled: false
+        email: pki-operations@example.invalid
+      internalCa:
+        enabled: false
+        provider: step-ca
+    monitoring:
+      prometheusRules: true
+
+  adapters:
+    enabled:
+      - cert-manager
+      - trust-manager
+      - traefik-acme
+    acknowledge: []
+    versions:
+      step_ca: ""
+      step_ca_chart: ""
+      openbao_chart: ""
+      openbao_image: ""
+      acme_sh_ref: ""
+      certbot: ""
+      ejbca_image: ""
+      lego: ""
+      dogtag: ""
+      freeipa: ""
+      cfssl: ""
+      dehydrated_ref: ""
+      spire_chart: ""
+      boulder_ref: ""
+      caddy: ""
+      traefik: ""
+      lemur_ref: ""
+      win_acme: ""
+      posh_acme: ""
+    checksums: {}
+    options:
+      traefik-acme:
+        resolverEnabled: false
+      step-ca:
+        installMode: kubernetes
+      openbao-pki:
+        installMode: kubernetes

@@ -1,0 +1,14 @@
+- name: Install or update Posh-ACME from PowerShell Gallery
+  community.windows.win_psmodule:
+    name: Posh-ACME
+    repository: "{{ certweaver_posh_acme_repository }}"
+    state: present
+    accept_license: true
+
+- name: Verify Posh-ACME module
+  ansible.windows.win_powershell:
+    script: |
+      $module = Get-Module -ListAvailable Posh-ACME | Sort-Object Version -Descending | Select-Object -First 1
+      if (-not $module) { throw "Posh-ACME is not installed" }
+      $Ansible.Result = @{ Version = $module.Version.ToString() }
+      $Ansible.Changed = $false

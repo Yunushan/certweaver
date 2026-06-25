@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "certweaver"
+version = "0.1.0"
+description = "Composable PKI and certificate automation orchestrator"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "CertWeaver contributors" }]
+dependencies = [
+  "PyYAML>=6.0.1,<7",
+  "jsonschema>=4.22,<5",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Security :: Cryptography",
+  "Topic :: System :: Systems Administration",
+]
+
+[project.optional-dependencies]
+dev = [
+  "ansible-core>=2.16,<2.20",
+  "ansible-lint>=24.6",
+  "pytest>=8.2",
+  "pytest-cov>=5",
+  "ruff>=0.5",
+  "yamllint>=1.35",
+  "build>=1.2",
+]
+
+[project.scripts]
+certweaver = "certweaver.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers"
+testpaths = ["tests"]

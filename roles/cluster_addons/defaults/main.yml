@@ -1,0 +1,12 @@
+certweaver_helm_version: v3.21.2
+certweaver_helm_checksum: ""
+certweaver_helm_checksums: {}
+certweaver_helm_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+certweaver_kubeconfig_source_rke2: /etc/rancher/rke2/rke2.yaml
+certweaver_kubeconfig_source_k3s: /etc/rancher/k3s/k3s.yaml
+certweaver_kubeconfig_path: /root/.kube/config
+certweaver_fetch_kubeconfig: true
+certweaver_local_kubeconfig_path: .certweaver/kubeconfig
+certweaver_existing_kubeconfig_source: /root/.kube/config

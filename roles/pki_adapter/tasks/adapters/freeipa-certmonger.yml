@@ -1,0 +1,31 @@
+- name: Install FreeIPA server/client and certmonger packages
+  ansible.builtin.dnf:
+    name: >-
+      {{ certweaver_adapter_options.get('freeipa-certmonger', {}).get(
+        'packages', ['freeipa-server', 'freeipa-client', 'certmonger']
+      ) }}
+    state: present
+
+- name: Enable certmonger
+  ansible.builtin.systemd:
+    name: certmonger
+    enabled: true
+    state: started
+
+- name: Configure FreeIPA server when explicitly requested
+  ansible.builtin.command:
+    argv:
+      - ipa-server-install
+      - --unattended
+      - --realm
+      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('realm') }}"
+      - --domain
+      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('domain') }}"
+      - --ds-password
+      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('directoryManagerPassword') }}"
+      - --admin-password
+      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('adminPassword') }}"
+  args:
+    creates: /etc/ipa/default.conf
+  no_log: true
+  when: certweaver_adapter_options.get('freeipa-certmonger', {}).get('configureServer', false) | bool

@@ -1,0 +1,113 @@
+- name: Resolve step-ca install mode
+  ansible.builtin.set_fact:
+    certweaver_step_ca_mode: >-
+      {{ certweaver_adapter_options.get('step-ca', {}).get('installMode',
+         'kubernetes' if certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes'] else
+         ('docker' if certweaver_mode == 'docker' else 'standalone')) }}
+
+- name: Install step-ca with the official Helm chart
+  when: certweaver_step_ca_mode == 'kubernetes'
+  block:
+    - name: Require pinned step-ca chart version
+      ansible.builtin.include_tasks: ../_require_version.yml
+      vars:
+        certweaver_required_adapter: step-ca-chart
+        certweaver_required_version: "{{ certweaver_adapter_versions.step_ca_chart }}"
+
+    - name: Ensure Helm exists
+      ansible.builtin.include_tasks: ../_ensure_helm.yml
+
+    - name: Add Smallstep Helm repository
+      ansible.builtin.command:
+        argv: [helm, repo, add, smallstep, https://smallstep.github.io/helm-charts, --force-update]
+      register: certweaver_step_repo
+      changed_when: "'has been added' in certweaver_step_repo.stdout"
+
+    - name: Install step-certificates chart
+      ansible.builtin.command:
+        argv:
+          - helm
+          - upgrade
+          - --install
+          - step-ca
+          - smallstep/step-certificates
+          - --version
+          - "{{ certweaver_adapter_versions.step_ca_chart }}"
+          - --namespace
+          - step-ca
+          - --create-namespace
+          - --values
+          - "{{ certweaver_adapter_options.get('step-ca', {}).get('valuesFile', '/etc/certweaver/step-ca-values.yaml') }}"
+          - --wait
+          - --timeout
+          - 15m
+      register: certweaver_step_ca_helm
+      changed_when: >-
+        'has been upgraded' in certweaver_step_ca_helm.stdout or
+        'has been installed' in certweaver_step_ca_helm.stdout
+
+- name: Install standalone/container step-ca binary and service assets
+  when: certweaver_step_ca_mode in ['standalone', 'docker']
+  block:
+    - name: Require pinned step-ca version
+      ansible.builtin.include_tasks: ../_require_version.yml
+      vars:
+        certweaver_required_adapter: step-ca
+        certweaver_required_version: "{{ certweaver_adapter_versions.step_ca }}"
+
+    - name: Install Podman for step-ca container mode
+      ansible.builtin.include_tasks: ../_ensure_podman.yml
+      when: certweaver_step_ca_mode == 'docker'
+
+    - name: Create step-ca persistent directory
+      ansible.builtin.file:
+        path: /var/lib/step-ca
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Render step-ca Quadlet
+      ansible.builtin.template:
+        src: step-ca.container.j2
+        dest: /etc/containers/systemd/certweaver-step-ca.container
+        owner: root
+        group: root
+        mode: "0600"
+      when: certweaver_step_ca_mode == 'docker'
+      notify: Reload adapter systemd
+
+    - name: Download step-ca binary archive
+      ansible.builtin.unarchive:
+        src: >-
+          {{ 'https://github.com/smallstep/certificates/releases/download/v' ~
+             certweaver_adapter_versions.step_ca ~ '/step-ca_linux_' ~
+             certweaver_adapter_versions.step_ca ~ '_' ~
+             certweaver_adapter_arch ~ '.tar.gz' }}
+        dest: /tmp
+        remote_src: true
+      when: certweaver_step_ca_mode == 'standalone'
+
+    - name: Install step-ca binary
+      ansible.builtin.copy:
+        src: "/tmp/step-ca_linux_{{ certweaver_adapter_versions.step_ca }}_{{ certweaver_adapter_arch }}/bin/step-ca"
+        dest: /usr/local/bin/step-ca
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+      when: certweaver_step_ca_mode == 'standalone'
+
+- name: Activate step-ca Quadlet when explicitly requested
+  when:
+    - certweaver_step_ca_mode == 'docker'
+    - certweaver_adapter_start_services | bool
+  block:
+    - name: Reload systemd after step-ca Quadlet creation
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start step-ca container service
+      ansible.builtin.systemd:
+        name: certweaver-step-ca.service
+        enabled: true
+        state: started

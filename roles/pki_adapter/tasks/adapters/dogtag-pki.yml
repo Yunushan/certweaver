@@ -1,0 +1,32 @@
+- name: Enable repositories required by Dogtag PKI
+  ansible.builtin.dnf:
+    name: epel-release
+    state: present
+
+- name: Install Dogtag PKI packages
+  ansible.builtin.dnf:
+    name:
+      - pki-ca
+      - pki-kra
+      - pki-tools
+    state: present
+
+- name: Check optional Dogtag pkispawn configuration
+  ansible.builtin.stat:
+    path: "{{ certweaver_adapter_options.get('dogtag-pki', {}).get('pkispawnConfig', '/etc/certweaver/dogtag-ca.cfg') }}"
+  register: certweaver_dogtag_config
+
+- name: Create Dogtag CA instance from reviewed configuration
+  ansible.builtin.command:
+    argv:
+      - pkispawn
+      - -s
+      - CA
+      - -f
+      - "{{ certweaver_adapter_options.get('dogtag-pki', {}).get('pkispawnConfig') }}"
+  args:
+    creates: /etc/pki/pki-tomcat/ca
+  no_log: true
+  when:
+    - certweaver_adapter_options.get('dogtag-pki', {}).get('configure', false) | bool
+    - certweaver_dogtag_config.stat.exists

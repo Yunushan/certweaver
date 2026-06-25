@@ -1,0 +1,38 @@
+- name: Prepare all K3s HA servers
+  hosts: cluster_servers
+  become: true
+  gather_facts: true
+  roles:
+    - role: common
+      tags: [common]
+    - role: haproxy_keepalived
+      when: certweaver_load_balancer_enabled | bool
+      tags: [load-balancer]
+
+- name: Bootstrap the first K3s server
+  hosts: cluster_bootstrap
+  become: true
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: k3s_server
+      tags: [k3s]
+
+- name: Join remaining K3s servers serially
+  hosts: cluster_joiners
+  become: true
+  gather_facts: true
+  serial: 1
+  roles:
+    - role: k3s_server
+      tags: [k3s]
+
+- name: Install cluster certificate platform
+  hosts: cluster_bootstrap
+  become: true
+  gather_facts: true
+  roles:
+    - role: cluster_addons
+      tags: [addons]
+    - role: pki_adapter
+      tags: [adapters]

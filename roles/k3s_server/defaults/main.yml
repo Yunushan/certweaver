@@ -1,0 +1,9 @@
+certweaver_k3s_install_script_url: https://get.k3s.io
+certweaver_k3s_install_script_checksum: ""
+certweaver_k3s_disable_components:
+  - traefik
+  - servicelb
+
+certweaver_k3s_protect_kernel_defaults: false
+certweaver_k3s_selinux: true
+certweaver_k3s_secrets_encryption: true

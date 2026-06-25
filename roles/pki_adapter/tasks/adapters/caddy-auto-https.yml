@@ -1,0 +1,44 @@
+- name: Require pinned Caddy version
+  ansible.builtin.include_tasks: ../_require_version.yml
+  vars:
+    certweaver_required_adapter: caddy
+    certweaver_required_version: "{{ certweaver_adapter_versions.caddy }}"
+
+- name: Download Caddy archive
+  ansible.builtin.unarchive:
+    src: >-
+      {{ 'https://github.com/caddyserver/caddy/releases/download/v' ~
+         certweaver_adapter_versions.caddy ~ '/caddy_' ~
+         certweaver_adapter_versions.caddy ~ '_linux_' ~
+         certweaver_adapter_arch ~ '.tar.gz' }}
+    dest: /usr/local/bin
+    remote_src: true
+    include: [caddy]
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create Caddy service user
+  ansible.builtin.user:
+    name: caddy
+    system: true
+    home: /var/lib/caddy
+    create_home: true
+    shell: /sbin/nologin
+
+- name: Create Caddy configuration directory
+  ansible.builtin.file:
+    path: /etc/caddy
+    state: directory
+    owner: root
+    group: caddy
+    mode: "0750"
+
+- name: Install operator-provided Caddyfile
+  ansible.builtin.copy:
+    src: "{{ certweaver_adapter_options.get('caddy-auto-https', {}).get('caddyfile') }}"
+    dest: /etc/caddy/Caddyfile
+    owner: root
+    group: caddy
+    mode: "0640"
+  when: certweaver_adapter_options.get('caddy-auto-https', {}).get('caddyfile', '') | length > 0

@@ -1,0 +1,6 @@
+- name: Install Windows ACME adapters
+  hosts: pki_windows
+  gather_facts: true
+  roles:
+    - role: pki_adapter_windows
+      tags: [adapters]

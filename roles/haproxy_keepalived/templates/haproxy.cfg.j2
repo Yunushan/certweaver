@@ -1,0 +1,76 @@
+global
+    log /dev/log local0
+    log /dev/log local1 notice
+    chroot /var/lib/haproxy
+    stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+    stats timeout 30s
+    user haproxy
+    group haproxy
+    daemon
+
+    ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
+    ssl-default-server-options ssl-min-ver TLSv1.2 no-tls-tickets
+
+defaults
+    log global
+    mode tcp
+    option tcplog
+    option dontlognull
+    timeout connect {{ certweaver_haproxy_connect_timeout }}
+    timeout client {{ certweaver_haproxy_client_timeout }}
+    timeout server {{ certweaver_haproxy_server_timeout }}
+
+frontend certweaver_kubernetes_api
+    bind {{ certweaver_vip }}:{{ certweaver_api_front_port }}
+    default_backend certweaver_kubernetes_api_nodes
+
+backend certweaver_kubernetes_api_nodes
+    balance roundrobin
+    option tcp-check
+{% for host in groups['cluster_servers'] %}
+    server {{ host }} {{ hostvars[host].ansible_host }}:6443 check inter 2s fall 3 rise 2
+{% endfor %}
+
+frontend certweaver_cluster_registration
+    bind {{ certweaver_vip }}:{{ certweaver_registration_front_port }}
+    default_backend certweaver_cluster_registration_nodes
+
+backend certweaver_cluster_registration_nodes
+    balance roundrobin
+    option tcp-check
+{% for host in groups['cluster_servers'] %}
+    server {{ host }} {{ hostvars[host].ansible_host }}:{{ 9345 if certweaver_mode == 'rke2-ha' else 6443 }} check inter 2s fall 3 rise 2
+{% endfor %}
+
+{% if certweaver_addons.traefik.enabled | default(false) %}
+frontend certweaver_ingress_http
+    bind {{ certweaver_vip }}:{{ certweaver_http_front_port }}
+    default_backend certweaver_ingress_http_nodes
+
+backend certweaver_ingress_http_nodes
+    balance roundrobin
+    option tcp-check
+{% for host in groups['cluster_servers'] %}
+    server {{ host }} {{ hostvars[host].ansible_host }}:{{ certweaver_ingress_http_nodeport }} check inter 2s fall 3 rise 2
+{% endfor %}
+
+frontend certweaver_ingress_https
+    bind {{ certweaver_vip }}:{{ certweaver_https_front_port }}
+    default_backend certweaver_ingress_https_nodes
+
+backend certweaver_ingress_https_nodes
+    balance roundrobin
+    option tcp-check
+{% for host in groups['cluster_servers'] %}
+    server {{ host }} {{ hostvars[host].ansible_host }}:{{ certweaver_ingress_https_nodeport }} check inter 2s fall 3 rise 2
+{% endfor %}
+{% endif %}
+
+{% if certweaver_haproxy_stats_enabled %}
+listen certweaver_stats
+    bind 127.0.0.1:{{ certweaver_haproxy_stats_port }}
+    mode http
+    stats enable
+    stats uri /stats
+    stats refresh 10s
+{% endif %}

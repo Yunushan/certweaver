@@ -1,0 +1,12 @@
+- name: Verify cert-manager is enabled as a core cluster add-on
+  ansible.builtin.assert:
+    that:
+      - certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
+      - certweaver_addons.certManager.enabled | default(false) | bool
+    fail_msg: "Enable spec.addons.certManager; the core add-on role owns this cluster-scoped installation."
+
+- name: Query cert-manager deployment
+  ansible.builtin.command: >-
+    kubectl --kubeconfig {{ certweaver_kubeconfig_path | default('/root/.kube/config') }}
+    -n cert-manager get deployment cert-manager
+  changed_when: false

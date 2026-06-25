@@ -1,0 +1,5 @@
+- name: Execute selected Windows adapter tasks
+  ansible.builtin.include_tasks: "adapters/{{ item }}.yml"
+  loop: "{{ certweaver_enabled_adapters | default([]) }}"
+  loop_control:
+    label: "{{ item }}"

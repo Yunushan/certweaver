@@ -1,0 +1,170 @@
+---
+- name: Validate supported Linux platform
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "RedHat"
+      - not certweaver_enforce_rocky9 or ansible_distribution_major_version | int == 9
+    fail_msg: >-
+      The default profile expects Rocky/RHEL-compatible Linux 9.
+      Override only after validation.
+
+- name: Install common platform packages
+  ansible.builtin.dnf:
+    name: "{{ certweaver_common_packages }}"
+    state: present
+    update_cache: true
+
+- name: Enable time synchronization
+  ansible.builtin.systemd:
+    name: chronyd
+    enabled: true
+    state: started
+
+- name: Disable active swap
+  ansible.builtin.command: swapoff -a
+  when: ansible_swaptotal_mb | int > 0
+  changed_when: true
+
+- name: Disable swap entries in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(?!#)(.+\s+swap\s+.+)$'
+    replace: '# CertWeaver disabled swap: \1'
+
+- name: Load Kubernetes kernel modules at boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/certweaver-kubernetes.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      overlay
+      br_netfilter
+
+- name: Load overlay module
+  community.general.modprobe:
+    name: overlay
+    state: present
+
+- name: Load br_netfilter module
+  community.general.modprobe:
+    name: br_netfilter
+    state: present
+
+- name: Configure Kubernetes and VIP sysctls
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+    sysctl_file: /etc/sysctl.d/90-certweaver.conf
+  loop:
+    - key: net.bridge.bridge-nf-call-iptables
+      value: 1
+    - key: net.bridge.bridge-nf-call-ip6tables
+      value: 1
+    - key: net.ipv4.ip_forward
+      value: 1
+    - key: net.ipv4.ip_nonlocal_bind
+      value: 1
+    - key: fs.inotify.max_user_instances
+      value: 8192
+    - key: fs.inotify.max_user_watches
+      value: 524288
+
+- name: Enable firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    enabled: true
+    state: started
+  when: certweaver_manage_firewalld | bool
+
+- name: Permit VRRP from cluster peers
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ hostvars[item].ansible_host }}/32"
+      protocol value="vrrp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ groups.get('cluster_servers', []) }}"
+  when:
+    - certweaver_manage_firewalld | bool
+    - item != inventory_hostname
+
+- name: Permit cluster-internal TCP ports from peers
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ hostvars[item.0].ansible_host }}/32"
+      port port="{{ item.1 }}" protocol="tcp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: >-
+    {{ groups.get('cluster_servers', []) |
+       product(certweaver_cluster_internal_tcp_ports) | list }}
+  when:
+    - certweaver_manage_firewalld | bool
+    - item.0 != inventory_hostname
+
+- name: Permit cluster-internal UDP ports from peers
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ hostvars[item.0].ansible_host }}/32"
+      port port="{{ item.1 }}" protocol="udp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: >-
+    {{ groups.get('cluster_servers', []) |
+       product(certweaver_cluster_internal_udp_ports) | list }}
+  when:
+    - certweaver_manage_firewalld | bool
+    - item.0 != inventory_hostname
+
+- name: Permit Kubernetes API and registration VIP ports from management networks
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ item.0 }}"
+      port port="{{ item.1 }}" protocol="tcp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: >-
+    {{ certweaver_management_cidrs |
+       product([certweaver_api_front_port, certweaver_registration_front_port]) | list }}
+  when:
+    - certweaver_manage_firewalld | bool
+    - certweaver_load_balancer_enabled | bool
+
+- name: Permit public ingress VIP ports from configured ingress networks
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ item.0 }}"
+      port port="{{ item.1 }}" protocol="tcp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: >-
+    {{ certweaver_ingress_cidrs |
+       product([certweaver_http_front_port, certweaver_https_front_port]) | list }}
+  when:
+    - certweaver_manage_firewalld | bool
+    - certweaver_load_balancer_enabled | bool
+    - certweaver_addons.traefik.enabled | default(false) | bool
+
+- name: Permit ingress NodePorts only from co-located load-balancer peers
+  ansible.posix.firewalld:
+    rich_rule: >-
+      rule family="ipv4" source address="{{ hostvars[item.0].ansible_host }}/32"
+      port port="{{ item.1 }}" protocol="tcp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: >-
+    {{ groups.get('cluster_servers', []) |
+       product([certweaver_ingress_http_nodeport, certweaver_ingress_https_nodeport]) | list }}
+  when:
+    - certweaver_manage_firewalld | bool
+    - certweaver_load_balancer_colocated | bool
+    - certweaver_addons.traefik.enabled | default(false) | bool

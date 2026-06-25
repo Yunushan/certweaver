@@ -1,0 +1,3 @@
+- name: Reject unsupported Windows adapter target
+  ansible.builtin.fail:
+    msg: "boulder is not installed by the Windows adapter role. Select a supported Linux/Kubernetes mode."

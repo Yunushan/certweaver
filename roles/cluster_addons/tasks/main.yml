@@ -1,0 +1,345 @@
+- name: Resolve cluster CLI paths
+  ansible.builtin.set_fact:
+    certweaver_cluster_kubeconfig_source: >-
+      {{ certweaver_kubeconfig_source_rke2 if certweaver_mode == 'rke2-ha'
+         else (certweaver_kubeconfig_source_k3s if certweaver_mode == 'k3s-ha'
+         else certweaver_existing_kubeconfig_source) }}
+    certweaver_helm_arch: "{{ certweaver_helm_arch_map.get(ansible_architecture, 'amd64') }}"
+
+- name: Resolve Helm checksum for the target architecture
+  ansible.builtin.set_fact:
+    certweaver_helm_checksum_resolved: >-
+      {{ certweaver_helm_checksums.get(certweaver_helm_arch, certweaver_helm_checksum) }}
+
+- name: Create operator Kubernetes directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop:
+    - /root/.kube
+    - /etc/certweaver/kubernetes
+
+- name: Download pinned Helm archive
+  ansible.builtin.get_url:
+    url: >-
+      https://get.helm.sh/helm-{{ certweaver_helm_version }}-linux-{{ certweaver_helm_arch }}.tar.gz
+    dest: "/tmp/helm-{{ certweaver_helm_version }}-linux-{{ certweaver_helm_arch }}.tar.gz"
+    owner: root
+    group: root
+    mode: "0600"
+    checksum: "{{ certweaver_helm_checksum_resolved | default(omit, true) }}"
+
+- name: Extract Helm archive
+  ansible.builtin.unarchive:
+    src: "/tmp/helm-{{ certweaver_helm_version }}-linux-{{ certweaver_helm_arch }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/linux-{{ certweaver_helm_arch }}/helm"
+
+- name: Place Helm binary
+  ansible.builtin.copy:
+    src: "/tmp/linux-{{ certweaver_helm_arch }}/helm"
+    dest: /usr/local/bin/helm
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Link kubectl for RKE2
+  ansible.builtin.file:
+    src: /var/lib/rancher/rke2/bin/kubectl
+    dest: /usr/local/bin/kubectl
+    state: link
+  when: certweaver_mode == 'rke2-ha'
+
+- name: Link kubectl for K3s
+  ansible.builtin.file:
+    src: /usr/local/bin/k3s
+    dest: /usr/local/bin/kubectl
+    state: link
+  when: certweaver_mode == 'k3s-ha'
+
+- name: Verify kubectl exists for an existing cluster
+  ansible.builtin.command: kubectl version --client=true
+  changed_when: false
+  when: certweaver_mode == 'existing-kubernetes'
+
+- name: Copy cluster kubeconfig into the operator path
+  ansible.builtin.copy:
+    src: "{{ certweaver_cluster_kubeconfig_source }}"
+    dest: "{{ certweaver_kubeconfig_path }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0600"
+  when: certweaver_cluster_kubeconfig_source != certweaver_kubeconfig_path
+
+- name: Protect an in-place existing-cluster kubeconfig
+  ansible.builtin.file:
+    path: "{{ certweaver_kubeconfig_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+    state: file
+  when: certweaver_cluster_kubeconfig_source == certweaver_kubeconfig_path
+
+- name: Point operator kubeconfig at floating VIP
+  ansible.builtin.replace:
+    path: "{{ certweaver_kubeconfig_path }}"
+    regexp: 'server: https://[^:]+:6443'
+    replace: "server: https://{{ certweaver_vip }}:{{ certweaver_api_front_port }}"
+  when: certweaver_mode in ['rke2-ha', 'k3s-ha']
+
+- name: Copy Kubernetes add-on assets
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/certweaver/kubernetes/
+    owner: root
+    group: root
+    mode: preserve
+  loop:
+    - "{{ role_path }}/../../kubernetes/cert-manager"
+    - "{{ role_path }}/../../kubernetes/approver-policy"
+    - "{{ role_path }}/../../kubernetes/trust-manager"
+    - "{{ role_path }}/../../kubernetes/csi-driver"
+    - "{{ role_path }}/../../kubernetes/traefik"
+    - "{{ role_path }}/../../kubernetes/issuers"
+    - "{{ role_path }}/../../kubernetes/monitoring"
+
+- name: Install cert-manager
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - cert-manager
+      - oci://quay.io/jetstack/charts/cert-manager
+      - --version
+      - "{{ certweaver_cert_manager_version }}"
+      - --namespace
+      - cert-manager
+      - --create-namespace
+      - --values
+      - /etc/certweaver/kubernetes/cert-manager/values.yaml
+      - --set
+      - "disableAutoApproval={{ certweaver_addons.certManager.disableAutoApproval | default(true) | bool | lower }}"
+      - --set
+      - "networkPolicy.enabled={{ certweaver_addons.certManager.networkPolicy | default(true) | bool | lower }}"
+      - --set
+      - "prometheus.enabled={{ certweaver_addons.certManager.prometheus | default(true) | bool | lower }}"
+      - --wait
+      - --timeout
+      - 10m
+  environment:
+    KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
+  register: certweaver_cert_manager_helm
+  changed_when: >-
+    'has been upgraded' in certweaver_cert_manager_helm.stdout or
+    'has been installed' in certweaver_cert_manager_helm.stdout
+  when: certweaver_addons.certManager.enabled | default(true) | bool
+
+- name: Wait for cert-manager webhook readiness
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - wait
+      - --for=condition=Available
+      - deployment/cert-manager-webhook
+      - --namespace=cert-manager
+      - --timeout=300s
+  changed_when: false
+  when: certweaver_addons.certManager.enabled | default(true) | bool
+
+- name: Install approver-policy
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - cert-manager-approver-policy
+      - oci://quay.io/jetstack/charts/cert-manager-approver-policy
+      - --version
+      - "{{ certweaver_approver_policy_version }}"
+      - --namespace
+      - cert-manager
+      - --values
+      - /etc/certweaver/kubernetes/approver-policy/values.yaml
+      - --wait
+      - --timeout
+      - 10m
+  environment:
+    KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
+  register: certweaver_approver_policy_helm
+  changed_when: >-
+    'has been upgraded' in certweaver_approver_policy_helm.stdout or
+    'has been installed' in certweaver_approver_policy_helm.stdout
+  when: certweaver_addons.approverPolicy.enabled | default(false) | bool
+
+- name: Apply bootstrap certificate request policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - apply
+      - -f
+      - /etc/certweaver/kubernetes/approver-policy/bootstrap-policy.yaml
+  register: certweaver_policy_apply
+  changed_when: >-
+    'created' in certweaver_policy_apply.stdout or
+    'configured' in certweaver_policy_apply.stdout
+  when: certweaver_addons.approverPolicy.enabled | default(false) | bool
+
+- name: Create dedicated trust-manager namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - create
+      - namespace
+      - "{{ certweaver_addons.trustManager.dedicatedNamespace | default('cert-manager-trust') }}"
+      - --dry-run=client
+      - -o
+      - yaml
+  register: certweaver_trust_namespace
+  changed_when: false
+  when: certweaver_addons.trustManager.enabled | default(false) | bool
+
+- name: Apply dedicated trust-manager namespace
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - apply
+      - -f
+      - -
+    stdin: "{{ certweaver_trust_namespace.stdout }}"
+  register: certweaver_trust_namespace_apply
+  changed_when: >-
+    'created' in certweaver_trust_namespace_apply.stdout or
+    'configured' in certweaver_trust_namespace_apply.stdout
+  when: certweaver_addons.trustManager.enabled | default(false) | bool
+- name: Install trust-manager
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - trust-manager
+      - oci://quay.io/jetstack/charts/trust-manager
+      - --version
+      - "{{ certweaver_trust_manager_version }}"
+      - --namespace
+      - "{{ certweaver_addons.trustManager.dedicatedNamespace | default('cert-manager-trust') }}"
+      - --values
+      - /etc/certweaver/kubernetes/trust-manager/values.yaml
+      - --set
+      - "app.webhook.tls.approverPolicy.certManagerNamespace=cert-manager"
+      - --set
+      - "app.trust.namespace={{ certweaver_addons.trustManager.dedicatedNamespace | default('cert-manager-trust') }}"
+      - --set
+      - "secretTargets.enabled={{ certweaver_addons.trustManager.secretTargets | default(false) | bool | lower }}"
+      - --wait
+      - --timeout
+      - 10m
+  environment:
+    KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
+  register: certweaver_trust_manager_helm
+  changed_when: >-
+    'has been upgraded' in certweaver_trust_manager_helm.stdout or
+    'has been installed' in certweaver_trust_manager_helm.stdout
+  when: certweaver_addons.trustManager.enabled | default(false) | bool
+
+- name: Install cert-manager CSI Driver
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - cert-manager-csi-driver
+      - oci://quay.io/jetstack/charts/cert-manager-csi-driver
+      - --version
+      - "{{ certweaver_csi_driver_version }}"
+      - --namespace
+      - cert-manager
+      - --values
+      - /etc/certweaver/kubernetes/csi-driver/values.yaml
+      - --wait
+      - --timeout
+      - 10m
+  environment:
+    KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
+  register: certweaver_csi_driver_helm
+  changed_when: >-
+    'has been upgraded' in certweaver_csi_driver_helm.stdout or
+    'has been installed' in certweaver_csi_driver_helm.stdout
+  when: certweaver_addons.csiDriver.enabled | default(false) | bool
+
+- name: Add Traefik Helm repository
+  ansible.builtin.command:
+    argv:
+      - helm
+      - repo
+      - add
+      - traefik
+      - https://traefik.github.io/charts
+      - --force-update
+  environment:
+    KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
+  register: certweaver_traefik_repo
+  changed_when: "'has been added' in certweaver_traefik_repo.stdout"
+  when: certweaver_addons.traefik.enabled | default(false) | bool
+
+- name: Install Traefik without independent ACME resolver
+  ansible.builtin.command:
+    argv:
+      - helm
+      - upgrade
+      - --install
+      - traefik
+      - traefik/traefik
+      - --version
+      - "{{ certweaver_addons.traefik.chartVersion | default('41.0.0') }}"
+      - --namespace
+      - traefik
+      - --create-namespace
+      - --values
+      - /etc/certweaver/kubernetes/traefik/values.yaml
+      - --set
+      - "ports.web.nodePort={{ certweaver_ingress_http_nodeport }}"
+      - --set
+      - "ports.websecure.nodePort={{ certweaver_ingress_https_nodeport }}"
+      - --wait
+      - --timeout
+      - 10m
+  environment:
+    KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
+  register: certweaver_traefik_helm
+  changed_when: "'has been upgraded' in certweaver_traefik_helm.stdout or 'has been installed' in certweaver_traefik_helm.stdout"
+  when: certweaver_addons.traefik.enabled | default(false) | bool
+
+- name: Fetch sanitized operator kubeconfig to controller
+  ansible.builtin.fetch:
+    src: "{{ certweaver_kubeconfig_path }}"
+    dest: "{{ certweaver_local_kubeconfig_path }}"
+    flat: true
+  when: certweaver_fetch_kubeconfig | bool
+  no_log: true
+
+- name: Run cluster add-on smoke tests
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - get
+      - pods
+      - --all-namespaces
+  changed_when: false

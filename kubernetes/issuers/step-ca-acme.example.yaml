@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: step-ca-acme
+spec:
+  acme:
+    server: https://step-ca.example.internal/acme/kubernetes/directory
+    caBundle: REPLACE_WITH_BASE64_CA_BUNDLE
+    privateKeySecretRef:
+      name: step-ca-acme-account
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: traefik
