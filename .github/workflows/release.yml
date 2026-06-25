@@ -27,7 +27,7 @@ jobs:
           --prefix=certweaver-${GITHUB_REF_NAME}/
           -o dist/certweaver-${GITHUB_REF_NAME}.zip HEAD
       - run: cd dist && sha256sum * > SHA256SUMS
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: |
             dist/*
