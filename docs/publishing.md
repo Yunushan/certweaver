@@ -15,3 +15,7 @@ git push -u gitlab main
 ```
 
 Enable protected branches, mandatory reviews, secret scanning, dependency updates, private vulnerability reporting, signed tags, and CI variables appropriate to each platform. Never put deployment secrets into repository variables that are exposed to untrusted pull/merge request pipelines.
+
+The default repository uses Renovate instead of Dependabot so updates can be
+release-aged, grouped, and rate limited. Keep the dependency dashboard enabled
+and merge only after CI and security scans are green.

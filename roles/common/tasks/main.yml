@@ -8,6 +8,33 @@
       The default profile expects Rocky/RHEL-compatible Linux 9.
       Override only after validation.
 
+- name: Resolve root filesystem free space
+  ansible.builtin.set_fact:
+    certweaver_root_free_mb: >-
+      {{
+        (
+          ansible_mounts |
+          selectattr('mount', 'equalto', '/') |
+          map(attribute='size_available') |
+          first |
+          default(0, true) |
+          int
+        ) // 1048576
+      }}
+
+- name: Validate minimum production host capacity
+  ansible.builtin.assert:
+    that:
+      - ansible_processor_vcpus | int >= certweaver_min_vcpus | int
+      - ansible_memtotal_mb | int >= certweaver_min_memory_mb | int
+      - certweaver_root_free_mb | int >= certweaver_min_root_free_mb | int
+    fail_msg: >-
+      Production nodes must meet the configured minimum capacity:
+      {{ certweaver_min_vcpus }} vCPU,
+      {{ certweaver_min_memory_mb }} MiB RAM, and
+      {{ certweaver_min_root_free_mb }} MiB free on /.
+  when: certweaver_environment == 'production'
+
 - name: Install common platform packages
   ansible.builtin.dnf:
     name: "{{ certweaver_common_packages }}"

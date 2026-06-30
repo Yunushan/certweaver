@@ -1,12 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
+  "dependencyDashboard": true,
+  "internalChecksFilter": "strict",
   "labels": ["dependencies"],
   "minimumReleaseAge": "7 days",
+  "prConcurrentLimit": 3,
+  "prCreation": "not-pending",
+  "prHourlyLimit": 1,
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
       "pinDigests": true
+    },
+    {
+      "matchManagers": ["pep621"],
+      "groupName": "python project dependencies"
     }
   ]
 }

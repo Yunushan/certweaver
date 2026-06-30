@@ -15,6 +15,9 @@ certweaver_enforce_rocky9: true
 certweaver_management_cidrs: []
 certweaver_ingress_cidrs:
   - 0.0.0.0/0
+certweaver_min_vcpus: 2
+certweaver_min_memory_mb: 4096
+certweaver_min_root_free_mb: 20480
 certweaver_cluster_internal_tcp_ports:
   - 2379-2380
   - 6443

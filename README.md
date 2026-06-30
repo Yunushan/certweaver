@@ -115,7 +115,7 @@ The sample does not create a public ACME issuer until an operator explicitly ena
 - The project rejects conflicting co-located HAProxy ports (`6443` and `9345`).
 - Lab-only and legacy adapters require explicit acknowledgement.
 
-Read [the security model](docs/security-model.md), [firewall matrix](docs/firewall.md), and [production operations guide](docs/operations.md) before deployment.
+Read [the security model](docs/security-model.md), [firewall matrix](docs/firewall.md), [production readiness scorecard](docs/production-readiness.md), and [production operations guide](docs/operations.md) before deployment.
 
 ## Common commands
 
@@ -133,11 +133,11 @@ make lint
 
 ## Repository publishing
 
-The repository includes GitHub Actions, GitLab CI, issue templates, release jobs, Dependabot/Renovate configuration, security policy, contribution guide, and an MIT license. See [publishing instructions](docs/publishing.md).
+The repository includes GitHub Actions, GitLab CI, issue templates, release jobs, Renovate configuration, security policy, contribution guide, and an MIT license. See [publishing instructions](docs/publishing.md).
 
 ## Validation status
 
-The repository includes unit, schema, YAML, and Ansible lint coverage. See the [v0.1.0 validation report](docs/test-report.md) for the exact tested boundary.
+The repository includes unit, schema, YAML, Ansible lint, secret scan, vulnerability scan, and CodeQL coverage. See the [v0.1.0 validation report](docs/test-report.md) for the exact tested boundary.
 
 ## Important limitations
 

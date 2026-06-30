@@ -1,11 +1,12 @@
 # Validation report for v0.1.0
 
-Validated in the repository build environment on 2026-06-24:
+Validated in the repository build environment on 2026-06-30:
 
 - Python unit tests for configuration validation, the 20-entry registry, inventory rendering, and all example profiles.
 - Ruff static checks.
 - yamllint for configuration, examples, Kubernetes values, playbooks, roles, and CI files.
 - ansible-lint production profile for all playbooks and roles.
+- GitHub Actions security automation for Gitleaks, Trivy SARIF upload, and CodeQL.
 - Declarative validation for RKE2 HA, K3s HA, existing Kubernetes, standalone, container, raw, Windows, and guarded-risk examples.
 
 Not claimed by this report:
