@@ -122,6 +122,8 @@ Read [the security model](docs/security-model.md), [firewall matrix](docs/firewa
 ```bash
 certweaver validate -c certweaver.yml
 certweaver matrix
+certweaver score
+certweaver evidence -c certweaver.yml -o .certweaver/evidence
 certweaver plan -c certweaver.yml
 certweaver doctor -c certweaver.yml
 certweaver render-inventory -c certweaver.yml
@@ -137,7 +139,7 @@ The repository includes GitHub Actions, GitLab CI, issue templates, release jobs
 
 ## Validation status
 
-The repository includes unit, schema, YAML, Ansible lint, secret scan, vulnerability scan, and CodeQL coverage. See the [v0.1.0 validation report](docs/test-report.md) for the exact tested boundary.
+The repository includes unit, schema, YAML, Ansible lint, secret scan, vulnerability scan, CodeQL coverage, and local evidence-bundle generation. See the [v0.1.0 validation report](docs/test-report.md) for the exact tested boundary.
 
 ## Important limitations
 

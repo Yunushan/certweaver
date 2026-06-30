@@ -9,6 +9,7 @@ from pathlib import Path
 from . import __version__
 from .config import load_config, validate_config
 from .errors import CertWeaverError
+from .readiness import repo_score, score_markdown, write_evidence_bundle
 from .registry import load_registry, project_root
 from .render import execution_plan, write_inventory
 
@@ -73,6 +74,26 @@ def command_render(args: argparse.Namespace) -> int:
     validate_config(config).require_ok()
     destination = write_inventory(config, args.output)
     print(destination)
+    return 0
+
+
+def command_score(_: argparse.Namespace) -> int:
+    print(score_markdown(), end="")
+    return 0
+
+
+def command_evidence(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    result = validate_config(config)
+    result.require_ok()
+    files = write_evidence_bundle(config, args.output)
+    score, maximum = repo_score()
+    print(f"Evidence bundle written to {Path(args.output).resolve()}")
+    print(f"Repo-local production maturity score: {score}/{maximum}")
+    for warning in result.warnings:
+        print(f"WARNING: {warning}")
+    for path in files:
+        print(path)
     return 0
 
 
@@ -156,6 +177,14 @@ def build_parser() -> argparse.ArgumentParser:
     _config_argument(render)
     render.add_argument("-o", "--output", default=".certweaver/inventory.yml")
     render.set_defaults(func=command_render)
+
+    score = sub.add_parser("score", help="Show the repo-local production maturity score")
+    score.set_defaults(func=command_score)
+
+    evidence = sub.add_parser("evidence", help="Write a sanitized production evidence bundle")
+    _config_argument(evidence)
+    evidence.add_argument("-o", "--output", default=".certweaver/evidence")
+    evidence.set_defaults(func=command_evidence)
 
     doctor = sub.add_parser("doctor", help="Check local prerequisites")
     _config_argument(doctor)

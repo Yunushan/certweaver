@@ -7,6 +7,8 @@ Validated in the repository build environment on 2026-06-30:
 - yamllint for configuration, examples, Kubernetes values, playbooks, roles, and CI files.
 - ansible-lint production profile for all playbooks and roles.
 - GitHub Actions security automation for Gitleaks, Trivy SARIF upload, and CodeQL.
+- Local production maturity score and evidence-bundle generation.
+- Wheel packaging build with `python -m build --wheel`.
 - Declarative validation for RKE2 HA, K3s HA, existing Kubernetes, standalone, container, raw, Windows, and guarded-risk examples.
 
 Not claimed by this report:
