@@ -110,6 +110,10 @@
     - "{{ role_path }}/../../kubernetes/monitoring"
 
 - name: Reconcile RKE2 S3 snapshot secret
+  no_log: true
+  when:
+    - certweaver_mode == 'rke2-ha'
+    - certweaver_rke2_etcd_s3_enabled | bool
   block:
     - name: Verify controller S3 snapshot secret file
       ansible.builtin.assert:
@@ -178,10 +182,6 @@
       loop:
         - /run/certweaver-etcd-s3.env
         - /run/certweaver-etcd-s3-secret.yaml
-  no_log: true
-  when:
-    - certweaver_mode == 'rke2-ha'
-    - certweaver_rke2_etcd_s3_enabled | bool
 
 - name: Install cert-manager
   ansible.builtin.command:
