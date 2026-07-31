@@ -21,3 +21,10 @@ spec:
             severity: critical
           annotations:
             summary: "Certificate is not Ready"
+        - alert: CertWeaverCertificateRequestDenied
+          expr: max by (name, namespace) (certmanager_certificate_request_ready_status{condition="False",reason="Denied"}) == 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "CertificateRequest was denied"

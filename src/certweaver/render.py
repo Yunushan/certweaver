@@ -99,7 +99,9 @@ def inventory_from_config(config: dict[str, Any]) -> dict[str, Any]:
         ),
         "certweaver_rke2_token_file": _resolve_secret(config, secrets.get("rke2TokenFile")),
         "certweaver_rke2_version": versions.get("rke2"),
+        "certweaver_rke2_install_script_checksum": versions.get("rke2InstallerChecksum", ""),
         "certweaver_k3s_version": versions.get("k3s"),
+        "certweaver_k3s_install_script_checksum": versions.get("k3sInstallerChecksum", ""),
         "certweaver_helm_version": versions.get("helm", "v3.21.2"),
         "certweaver_helm_checksum": versions.get("helmChecksum", ""),
         "certweaver_helm_checksums": versions.get("helmChecksums", {}),
@@ -137,6 +139,19 @@ def inventory_from_config(config: dict[str, Any]) -> dict[str, Any]:
         "certweaver_rke2_etcd_snapshot_retention": rke2.get("etcdSnapshots", {}).get(
             "retention", 28
         ),
+        "certweaver_rke2_etcd_s3_enabled": rke2.get("etcdSnapshots", {})
+        .get("s3", {})
+        .get("enabled", False),
+        "certweaver_rke2_etcd_s3_secret_name": rke2.get("etcdSnapshots", {})
+        .get("s3", {})
+        .get("secretName", "certweaver-etcd-s3"),
+        "certweaver_rke2_etcd_s3_config_file": _resolve_secret(
+            config,
+            rke2.get("etcdSnapshots", {}).get("s3", {}).get("configSecretFile"),
+        ),
+        "certweaver_monitoring_prometheus_rules": addons.get("monitoring", {}).get(
+            "prometheusRules", False
+        ),
         "certweaver_k3s_selinux": k3s.get("selinux", True),
         "certweaver_k3s_secrets_encryption": k3s.get("secretsEncryption", True),
         "certweaver_k3s_protect_kernel_defaults": k3s.get(
@@ -146,7 +161,7 @@ def inventory_from_config(config: dict[str, Any]) -> dict[str, Any]:
             "existingKubeconfig", "/root/.kube/config"
         ),
         "certweaver_fetch_kubeconfig": platform.get(
-            "fetchKubeconfig", mode in {"rke2-ha", "k3s-ha"}
+            "fetchKubeconfig", False
         ),
         "certweaver_win_acme_version": adapter_versions.get("win_acme", ""),
         "certweaver_win_acme_url": adapters.get("options", {})

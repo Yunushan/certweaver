@@ -7,6 +7,7 @@ certweaver_helm_arch_map:
 certweaver_kubeconfig_source_rke2: /etc/rancher/rke2/rke2.yaml
 certweaver_kubeconfig_source_k3s: /etc/rancher/k3s/k3s.yaml
 certweaver_kubeconfig_path: /root/.kube/config
-certweaver_fetch_kubeconfig: true
+certweaver_fetch_kubeconfig: false
 certweaver_local_kubeconfig_path: .certweaver/kubeconfig
 certweaver_existing_kubeconfig_source: /root/.kube/config
+certweaver_monitoring_prometheus_rules: false

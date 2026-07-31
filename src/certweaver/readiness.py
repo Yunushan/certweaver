@@ -58,17 +58,17 @@ SCORE_AREAS: tuple[ScoreArea, ...] = (
     ),
     ScoreArea(
         "Version and supply chain",
-        11,
         12,
-        "Pinned versions, Helm checksums, release-aged Renovate, GitHub Actions "
-        "pinning policy, and security scanning.",
+        12,
+        "Pinned versions, verified Helm and privileged installer downloads, immutable "
+        "GitHub Actions, SBOMs, attestations, Renovate, and security scanning.",
     ),
     ScoreArea(
         "Backup and recovery",
-        9,
         10,
-        "Scheduled etcd snapshots are required and restore evidence is tracked in "
-        "the evidence bundle.",
+        10,
+        "Scheduled etcd snapshots and S3-compatible off-host replication are required; "
+        "restore evidence is tracked in the evidence bundle.",
     ),
     ScoreArea(
         "CI and static validation",
@@ -165,7 +165,10 @@ def config_summary(config: dict[str, Any]) -> dict[str, Any]:
     platform = spec.get("platform", {})
     nodes = platform.get("nodes", []) or []
     versions = spec.get("versions", {}) or {}
-    secrets = spec.get("secrets", {}) or {}
+    secrets = dict(spec.get("secrets", {}) or {})
+    snapshot_s3 = ((spec.get("rke2", {}) or {}).get("etcdSnapshots", {}) or {}).get("s3", {})
+    if isinstance(snapshot_s3, dict) and snapshot_s3.get("configSecretFile"):
+        secrets["etcdS3ConfigFile"] = snapshot_s3["configSecretFile"]
     source = Path(config.get("__source_path__", ".")).parent
 
     return {
@@ -190,6 +193,12 @@ def config_summary(config: dict[str, Any]) -> dict[str, Any]:
         "helmChecksumPresent": bool(
             versions.get("helmChecksum") or versions.get("helmChecksums")
         ),
+        "etcdSnapshotReplication": {
+            "enabled": bool(snapshot_s3.get("enabled", False))
+            if isinstance(snapshot_s3, dict)
+            else False,
+            "secretName": snapshot_s3.get("secretName") if isinstance(snapshot_s3, dict) else None,
+        },
     }
 
 
