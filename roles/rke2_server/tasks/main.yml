@@ -5,6 +5,20 @@
       - lookup('ansible.builtin.file', certweaver_rke2_token_file, errors='ignore') | trim | length >= 16
     fail_msg: "Create a strong RKE2 token file on the Ansible controller."
 
+- name: Verify RKE2 installer checksum
+  ansible.builtin.assert:
+    that:
+      - certweaver_rke2_install_script_checksum is match('^sha256:[a-fA-F0-9]{64}$')
+    fail_msg: >-
+      RKE2 installation requires an approved SHA-256 checksum for the installer script.
+
+- name: Verify RKE2 off-host snapshot configuration
+  ansible.builtin.assert:
+    that:
+      - certweaver_rke2_etcd_s3_secret_name is match('^[a-z0-9]([-a-z0-9]*[a-z0-9])?$')
+    fail_msg: "RKE2 S3 snapshot replication requires a valid secret name."
+  when: certweaver_rke2_etcd_s3_enabled | bool
+
 - name: Create RKE2 configuration directories
   ansible.builtin.file:
     path: "{{ item }}"
@@ -24,7 +38,7 @@
     owner: root
     group: root
     mode: "0700"
-    checksum: "{{ certweaver_rke2_install_script_checksum | default(omit, true) }}"
+    checksum: "{{ certweaver_rke2_install_script_checksum }}"
 
 - name: Install pinned RKE2 server
   ansible.builtin.command: /root/install-rke2.sh

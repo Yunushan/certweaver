@@ -11,6 +11,7 @@ spec:
 
   platform:
     os: rocky9
+    fetchKubeconfig: false
     nodes:
       - name: rke2-01
         address: 10.20.30.11
@@ -55,7 +56,9 @@ spec:
   versions:
     # Pin and review versions before every production rollout.
     rke2: v1.33.12+rke2r2
+    rke2InstallerChecksum: sha256:42983c86d1da64a92061d83afb57630cedd69241989f1b0673f3db6c3d92ee6b
     k3s: v1.33.12+k3s1
+    k3sInstallerChecksum: sha256:d264d4d43f7c5a27b44de0075513fb22dfb02d0b7cd33ba7a3838cb822f4729c
     helm: v3.21.2
     helmChecksums:
       amd64: sha256:0a745198de24545d0055cd8414bc8d2ba10363ef5f5d38369ea1b399671cc083
@@ -75,12 +78,16 @@ spec:
     selinux: true
     secretsEncryption: true
     auditPolicy: true
-    protectKernelDefaults: false  # Enable only after applying the matching CIS sysctl profile.
+    protectKernelDefaults: true
     disablePackagedIngress: true
     etcdSnapshots:
       enabled: true
       scheduleCron: "0 */6 * * *"
       retention: 28
+      s3:
+        enabled: true
+        secretName: certweaver-etcd-s3
+        configSecretFile: secrets/etcd-s3.env
 
   addons:
     certManager:

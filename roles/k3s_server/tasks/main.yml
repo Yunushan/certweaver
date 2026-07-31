@@ -4,6 +4,13 @@
       - certweaver_rke2_token_file is not none
       - lookup('ansible.builtin.file', certweaver_rke2_token_file, errors='ignore') | trim | length >= 16
 
+- name: Verify K3s installer checksum
+  ansible.builtin.assert:
+    that:
+      - certweaver_k3s_install_script_checksum is match('^sha256:[a-fA-F0-9]{64}$')
+    fail_msg: >-
+      K3s installation requires an approved SHA-256 checksum for the installer script.
+
 - name: Create K3s configuration directory
   ansible.builtin.file:
     path: /etc/rancher/k3s
@@ -19,7 +26,7 @@
     owner: root
     group: root
     mode: "0700"
-    checksum: "{{ certweaver_k3s_install_script_checksum | default(omit, true) }}"
+    checksum: "{{ certweaver_k3s_install_script_checksum }}"
 
 - name: Render K3s server configuration
   ansible.builtin.template:

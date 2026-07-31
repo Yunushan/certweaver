@@ -29,6 +29,10 @@ profile: {{ certweaver_rke2_profile | to_json }}
 etcd-snapshot-schedule-cron: {{ certweaver_rke2_etcd_snapshot_schedule | to_json }}
 etcd-snapshot-retention: {{ certweaver_rke2_etcd_snapshot_retention }}
 {% endif %}
+{% if certweaver_rke2_etcd_s3_enabled | bool %}
+etcd-s3: true
+etcd-s3-config-secret: {{ certweaver_rke2_etcd_s3_secret_name | to_json }}
+{% endif %}
 {% if certweaver_rke2_audit_enabled | bool %}
 kube-apiserver-arg:
   - "audit-policy-file=/etc/rancher/rke2/audit/audit-policy.yaml"

@@ -2,7 +2,7 @@
 
 **Composable, vendor-neutral PKI and certificate automation for Kubernetes, Linux, Docker/Podman, and Windows.**
 
-CertWeaver is an MIT-licensed orchestration project for deploying highly available certificate-management foundations and selecting among twenty open-source PKI/certificate automation integrations through one declarative configuration.
+CertWeaver is a 0BSD-licensed orchestration project for deploying highly available certificate-management foundations and selecting among twenty open-source PKI/certificate automation integrations through one declarative configuration.
 
 > Project status: `v0.1.0` reference implementation. Review, test, and adapt it in a non-production environment before production use. "Supported" means that CertWeaver provides an adapter, validation rules, documentation, and an installation path; it does not replace each upstream project's own compatibility, security, or support policy.
 
@@ -94,6 +94,9 @@ openssl rand -hex 32 > secrets/rke2-token
 openssl rand -hex 4  > secrets/keepalived-auth
 chmod 600 secrets/*
 
+# Create the S3 snapshot credentials file described in docs/operations.md.
+# It is required by the production RKE2 profile and remains ignored by Git.
+
 # Edit node addresses, interface and VIP first.
 certweaver validate -c certweaver.yml
 certweaver plan -c certweaver.yml
@@ -135,7 +138,7 @@ make lint
 
 ## Repository publishing
 
-The repository includes GitHub Actions, GitLab CI, issue templates, release jobs, Renovate configuration, security policy, contribution guide, and an MIT license. See [publishing instructions](docs/publishing.md).
+The repository includes GitHub Actions, GitLab CI, issue templates, release jobs, Renovate configuration, security policy, contribution guide, and a 0BSD license. See [publishing instructions](docs/publishing.md).
 
 ## Validation status
 
@@ -149,4 +152,4 @@ The name **CertWeaver** was selected for this reference implementation; perform 
 
 ## License
 
-CertWeaver is licensed under the [MIT License](LICENSE). Integrated third-party projects keep their own licenses; see [THIRD_PARTY.md](THIRD_PARTY.md).
+CertWeaver is licensed under the [0BSD License](LICENSE). Integrated third-party projects keep their own licenses; see [THIRD_PARTY.md](THIRD_PARTY.md).

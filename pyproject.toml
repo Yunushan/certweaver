@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Composable PKI and certificate automation orchestrator"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
+license = "0BSD"
 authors = [{ name = "CertWeaver contributors" }]
 dependencies = [
   "PyYAML>=6.0.1,<7",
@@ -50,5 +50,5 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers --cov=certweaver --cov-report=term-missing --cov-fail-under=80"
 testpaths = ["tests"]

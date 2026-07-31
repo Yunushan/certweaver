@@ -109,6 +109,80 @@
     - "{{ role_path }}/../../kubernetes/issuers"
     - "{{ role_path }}/../../kubernetes/monitoring"
 
+- name: Reconcile RKE2 S3 snapshot secret
+  no_log: true
+  when:
+    - certweaver_mode == 'rke2-ha'
+    - certweaver_rke2_etcd_s3_enabled | bool
+  block:
+    - name: Verify controller S3 snapshot secret file
+      ansible.builtin.assert:
+        that:
+          - certweaver_rke2_etcd_s3_config_file is not none
+          - lookup('ansible.builtin.file', certweaver_rke2_etcd_s3_config_file, errors='ignore') | trim | length > 0
+        fail_msg: >-
+          Create the RKE2 etcd S3 configuration secret file on the Ansible controller.
+
+    - name: Stage RKE2 S3 snapshot secret configuration
+      ansible.builtin.copy:
+        src: "{{ certweaver_rke2_etcd_s3_config_file }}"
+        dest: /run/certweaver-etcd-s3.env
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Render RKE2 S3 snapshot Kubernetes Secret
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ certweaver_kubeconfig_path }}"
+          - -n
+          - kube-system
+          - create
+          - secret
+          - generic
+          - "{{ certweaver_rke2_etcd_s3_secret_name }}"
+          - --type=etcd.k3s.cattle.io/s3-config-secret
+          - --from-env-file=/run/certweaver-etcd-s3.env
+          - --dry-run=client
+          - -o
+          - yaml
+      register: certweaver_rke2_etcd_s3_secret
+      changed_when: false
+
+    - name: Write rendered RKE2 S3 snapshot Kubernetes Secret
+      ansible.builtin.copy:
+        content: "{{ certweaver_rke2_etcd_s3_secret.stdout }}"
+        dest: /run/certweaver-etcd-s3-secret.yaml
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Apply RKE2 S3 snapshot Kubernetes Secret
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ certweaver_kubeconfig_path }}"
+          - apply
+          - --server-side
+          - --field-manager=certweaver
+          - -f
+          - /run/certweaver-etcd-s3-secret.yaml
+      register: certweaver_rke2_etcd_s3_apply
+      changed_when: >-
+        'created' in certweaver_rke2_etcd_s3_apply.stdout or
+        'configured' in certweaver_rke2_etcd_s3_apply.stdout
+  always:
+    - name: Remove staged RKE2 S3 snapshot secret material
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /run/certweaver-etcd-s3.env
+        - /run/certweaver-etcd-s3-secret.yaml
+
 - name: Install cert-manager
   ansible.builtin.command:
     argv:
@@ -332,6 +406,35 @@
     flat: true
   when: certweaver_fetch_kubeconfig | bool
   no_log: true
+
+- name: Verify Prometheus Operator supports required alert rules
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - get
+      - crd
+      - prometheusrules.monitoring.coreos.com
+  changed_when: false
+  when: certweaver_monitoring_prometheus_rules | bool
+
+- name: Apply CertWeaver certificate alert rules
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - apply
+      - --server-side
+      - --field-manager=certweaver
+      - -f
+      - /etc/certweaver/kubernetes/monitoring/prometheusrule.yaml
+  register: certweaver_prometheus_rule_apply
+  changed_when: >-
+    'created' in certweaver_prometheus_rule_apply.stdout or
+    'configured' in certweaver_prometheus_rule_apply.stdout
+  when: certweaver_monitoring_prometheus_rules | bool
 
 - name: Run cluster add-on smoke tests
   ansible.builtin.command:

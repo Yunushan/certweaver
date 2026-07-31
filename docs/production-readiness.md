@@ -9,17 +9,17 @@ staging deployment, security review, or change advisory decision.
 | Area | Score | Evidence |
 |---|---:|---|
 | HA topology | 14/15 | Three RKE2 server/etcd nodes, odd quorum, VIP, HAProxy, Keepalived, and co-located port-collision validation. |
-| Host hardening | 14/15 | SELinux, firewalld, swap disablement, minimum host capacity checks, kernel modules, Kubernetes sysctls, audit policy, and secrets encryption are modeled. CIS `protectKernelDefaults` remains an operator-gated step. |
+| Host hardening | 14/15 | SELinux, firewalld, swap disablement, minimum host capacity checks, kernel modules, Kubernetes sysctls, audit policy, secrets encryption, and required `protectKernelDefaults` are modeled. A formal CIS-profile validation remains environment-specific. |
 | Network exposure | 14/15 | Management CIDRs are required for production and cannot be `0.0.0.0/0` or `::/0`; ingress CIDRs are separate. |
 | Certificate control plane | 14/14 | cert-manager, approver-policy, trust-manager, HA values, NetworkPolicies, disabled automatic approval, and ACME ownership conflict validation are the default. |
-| Version and supply-chain control | 11/12 | Versions are pinned, Helm checksums are supported, GitHub Actions are scanned, Renovate is grouped and release-aged. Installer script checksums are still operator-supplied. |
-| Backup and recovery | 9/10 | etcd snapshots are required for production RKE2 and restore evidence is tracked in the generated evidence bundle. |
+| Version and supply-chain control | 12/12 | Versions and privileged installer scripts are checksum-verified; GitHub Actions are immutable SHA-pinned; releases build a wheel, SBOM, checksums, and provenance attestation; Renovate is release-aged. |
+| Backup and recovery | 10/10 | Scheduled etcd snapshots and S3-compatible off-host replication are required for production RKE2; restore evidence is tracked in the generated evidence bundle. |
 | CI and static validation | 10/10 | Ruff, pytest, yamllint, ansible-lint, schema validation, Trivy, Gitleaks, and CodeQL are configured. |
 | Evidence automation | 5/5 | `certweaver score` reports repo-local maturity and `certweaver evidence` writes a sanitized evidence bundle skeleton. |
 | Documentation and limitations | 4/4 | Architecture, firewall, security model, operations, publishing, air-gap notes, scorecard, and tested boundaries are documented. |
 
-Repository maturity target after this pass: **95/100 before live staging
-evidence**, with the remaining 5 points intentionally reserved for
+Repository maturity target after this pass: **97/100 before live staging
+evidence**, with the remaining 3 points intentionally reserved for
 environment-specific proof.
 
 Run these local commands before staging:

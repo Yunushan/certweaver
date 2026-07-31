@@ -15,8 +15,8 @@ def sample() -> dict:
 
 
 def test_repo_score_is_repo_local_target() -> None:
-    assert repo_score() == (95, 100)
-    assert "95/100" in score_markdown()
+    assert repo_score() == (97, 100)
+    assert "97/100" in score_markdown()
     assert sum(area.maximum for area in SCORE_AREAS) == 100
     assert len({area.area for area in SCORE_AREAS}) == len(SCORE_AREAS)
 
@@ -35,7 +35,7 @@ def test_evidence_bundle_writes_sanitized_artifacts(tmp_path) -> None:
     } <= names
 
     manifest = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
-    assert manifest["repoScore"] == 95
+    assert manifest["repoScore"] == 97
     assert manifest["repoScoreMaximum"] == 100
     assert manifest["configSha256"]
     assert manifest["validation"]["errors"] == []
@@ -44,3 +44,4 @@ def test_evidence_bundle_writes_sanitized_artifacts(tmp_path) -> None:
     assert summary["nodeCount"] == 3
     assert "cert-manager" in summary["adaptersEnabled"]
     assert "rke2TokenFile" in summary["secretFilesPresent"]
+    assert summary["etcdSnapshotReplication"]["enabled"] is True

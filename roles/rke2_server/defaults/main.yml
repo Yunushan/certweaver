@@ -9,6 +9,9 @@ certweaver_rke2_audit_enabled: true
 certweaver_rke2_etcd_snapshot_enabled: true
 certweaver_rke2_etcd_snapshot_schedule: "0 */6 * * *"
 certweaver_rke2_etcd_snapshot_retention: 28
+certweaver_rke2_etcd_s3_enabled: false
+certweaver_rke2_etcd_s3_secret_name: certweaver-etcd-s3
+certweaver_rke2_etcd_s3_config_file: ""
 certweaver_rke2_profile: ""
 
 certweaver_rke2_protect_kernel_defaults: false

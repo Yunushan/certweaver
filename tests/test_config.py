@@ -47,6 +47,27 @@ def test_production_cert_manager_auto_approval_is_rejected() -> None:
     assert any("automatic approval" in error for error in result.errors)
 
 
+def test_production_requires_privileged_installer_checksum() -> None:
+    data = sample()
+    data["spec"]["versions"]["rke2InstallerChecksum"] = ""
+    result = validate_config(data)
+    assert any("rke2InstallerChecksum" in error for error in result.errors)
+
+
+def test_production_requires_kernel_default_protection() -> None:
+    data = sample()
+    data["spec"]["rke2"]["protectKernelDefaults"] = False
+    result = validate_config(data)
+    assert any("protectKernelDefaults" in error for error in result.errors)
+
+
+def test_production_requires_off_host_etcd_snapshot_replication() -> None:
+    data = sample()
+    data["spec"]["rke2"]["etcdSnapshots"]["s3"]["enabled"] = False
+    result = validate_config(data)
+    assert any("off-host etcd snapshot" in error for error in result.errors)
+
+
 def test_traefik_acme_resolver_conflict_is_rejected() -> None:
     data = sample()
     data["spec"]["adapters"]["options"]["traefik-acme"]["resolverEnabled"] = True

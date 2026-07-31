@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -85,6 +86,10 @@ def _looks_placeholder(value: str | None) -> bool:
         or lowered.endswith(".invalid")
         or lowered.endswith("@example.invalid")
     )
+
+
+def _is_sha256(value: Any) -> bool:
+    return isinstance(value, str) and bool(re.fullmatch(r"sha256:[a-fA-F0-9]{64}", value))
 
 
 def validate_config(data: dict[str, Any]) -> ValidationResult:
@@ -191,17 +196,26 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
                     result.errors.append("Production RKE2 requires Kubernetes audit logging")
                 if not _get(data, "spec.rke2.etcdSnapshots.enabled", True):
                     result.errors.append("Production RKE2 requires scheduled etcd snapshots")
+                snapshot_s3 = _get(data, "spec.rke2.etcdSnapshots.s3", {}) or {}
+                if not snapshot_s3.get("enabled", False):
+                    result.errors.append(
+                        "Production RKE2 requires encrypted off-host etcd snapshot replication"
+                    )
+                elif not snapshot_s3.get("configSecretFile") or not snapshot_s3.get("secretName"):
+                    result.errors.append(
+                        "Production RKE2 S3 snapshots require configSecretFile and secretName"
+                    )
                 if not _get(data, "spec.rke2.protectKernelDefaults", False):
-                    result.warnings.append(
-                        "Production RKE2 should enable protectKernelDefaults after applying "
+                    result.errors.append(
+                        "Production RKE2 requires protectKernelDefaults after applying "
                         "the matching CIS/sysctl baseline"
                     )
             if mode == "k3s-ha":
                 if not _get(data, "spec.k3s.secretsEncryption", True):
                     result.errors.append("Production K3s requires secrets encryption")
                 if not _get(data, "spec.k3s.protectKernelDefaults", False):
-                    result.warnings.append(
-                        "Production K3s should enable protectKernelDefaults after applying "
+                    result.errors.append(
+                        "Production K3s requires protectKernelDefaults after applying "
                         "the matching CIS/sysctl baseline"
                     )
 
@@ -327,6 +341,15 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
                 result.warnings.append(
                     f"Production deployment should pin spec.versions.{required}"
                 )
+        installer_checksum_key = {
+            "rke2-ha": "rke2InstallerChecksum",
+            "k3s-ha": "k3sInstallerChecksum",
+        }.get(mode)
+        if installer_checksum_key and not _is_sha256(versions.get(installer_checksum_key)):
+            result.errors.append(
+                f"Production {mode} requires spec.versions.{installer_checksum_key} "
+                "as a SHA-256 checksum for the privileged installer script"
+            )
         if (
             mode in {"rke2-ha", "k3s-ha", "existing-kubernetes"}
             and not versions.get("helmChecksum")
