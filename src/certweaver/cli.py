@@ -28,8 +28,12 @@ def _print_validation(config_path: str, *, strict: bool = False, fail: bool = Tr
     result = validate_config(config, strict=strict)
     for warning in result.warnings:
         print(f"WARNING: {warning}")
-    for error in result.errors:
-        print(f"ERROR: {error}", file=sys.stderr)
+    if result.errors:
+        print(
+            f"ERROR: configuration validation failed ({len(result.errors)} issue(s)); "
+            "review the configuration and strict production policy.",
+            file=sys.stderr,
+        )
     if result.ok:
         print("Configuration is valid")
         return 0
@@ -132,8 +136,11 @@ def command_doctor(args: argparse.Namespace) -> int:
         failed |= not bool(value)
     for warning in result.warnings:
         print(f"WARNING: {warning}")
-    for error in result.errors:
-        print(f"ERROR: {error}")
+    if result.errors:
+        print(
+            f"ERROR: configuration validation failed ({len(result.errors)} issue(s)); "
+            "review the configuration and strict production policy."
+        )
         failed = True
     return 2 if failed else 0
 
