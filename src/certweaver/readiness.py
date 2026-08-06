@@ -209,6 +209,7 @@ _SENSITIVE_EVIDENCE_PATTERNS = (
 _PLACEHOLDER_PATTERN = re.compile(
     r"(?i)\b(?:TODO|TBD|REPLACE_ME|CHANGE_ME|NOT_COLLECTED|INSERT_.*?_HERE)\b"
 )
+_SENSITIVE_FILENAME_PATTERN = re.compile(r"(?i)(?:kubeconfig|\.pem$|\.key$|id_rsa)")
 
 
 def repo_score() -> tuple[int, int]:
@@ -312,9 +313,9 @@ def requirements_markdown() -> str:
 
 
 def _artifact_path(root: Path, relative: str) -> Path | None:
-    candidate = (root / relative).resolve()
+    candidate = root / relative
     try:
-        candidate.relative_to(root.resolve())
+        candidate.resolve().relative_to(root.resolve())
     except ValueError:
         return None
     return candidate
@@ -363,6 +364,12 @@ def verify_live_evidence(
     checked: list[str] = []
     if not root.is_dir():
         return LiveEvidenceResult(("evidence directory does not exist",), ())
+    if config is None:
+        errors.append("a configuration is required to validate deployment evidence")
+    else:
+        strict_validation = validate_config(config, strict=True)
+        if strict_validation.errors:
+            errors.append("configuration fails strict production validation")
 
     manifest_path = root / "manifest.json"
     if not manifest_path.is_file():
@@ -385,15 +392,20 @@ def verify_live_evidence(
             elif not isinstance(validation, dict):
                 errors.append("manifest.json: validation must be a JSON object")
 
+    checked_paths: set[Path] = set()
     for requirement in REQUIRED_EVIDENCE:
         for relative in requirement.artifacts:
             path = _artifact_path(root, relative)
             if path is None:
                 errors.append(f"{relative}: artifact path escapes evidence directory")
                 continue
+            if path.is_symlink():
+                errors.append(f"{relative}: symlinked evidence artifacts are not accepted")
+                continue
             if not path.is_file():
                 errors.append(f"{relative}: required evidence artifact is missing")
                 continue
+            checked_paths.add(path)
             text = _read_evidence_text(path)
             checked.append(relative)
             if not text.strip():
@@ -405,6 +417,20 @@ def verify_live_evidence(
                 errors.append(f"{relative}: placeholder evidence is not accepted")
             if path.name.endswith("attestation.json"):
                 _validate_attestation(path, text, errors)
+
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path in checked_paths:
+            continue
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            errors.append(f"{relative}: symlinked evidence artifacts are not accepted")
+            continue
+        if _SENSITIVE_FILENAME_PATTERN.search(path.name):
+            errors.append(f"{relative}: sensitive-looking filenames are not accepted")
+            continue
+        text = _read_evidence_text(path)
+        if any(pattern.search(text) for pattern in _SENSITIVE_EVIDENCE_PATTERNS):
+            errors.append(f"{relative}: sensitive material must be redacted")
 
     return LiveEvidenceResult(tuple(errors), tuple(checked))
 

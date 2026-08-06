@@ -28,6 +28,19 @@ def complete_live_evidence(destination) -> None:
                 path.write_text("Observed pass evidence\n", encoding="utf-8")
 
 
+def production_config(tmp_path):
+    config = tmp_path / "certweaver.yml"
+    config.write_text(CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "rke2-token").write_text("a-strong-test-rke2-token\n", encoding="utf-8")
+    (secrets / "keepalived-auth").write_text("strong-auth\n", encoding="utf-8")
+    (secrets / "etcd-s3.env").write_text(
+        "etcd-s3-endpoint=https://s3.example\n", encoding="utf-8"
+    )
+    return config
+
+
 def invoke_cli(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> int:
     monkeypatch.setattr(sys, "argv", ["certweaver", *args])
     with pytest.raises(SystemExit) as result:
@@ -70,19 +83,20 @@ def test_cli_renders_inventory_and_evidence(
 def test_cli_verifies_live_evidence_and_reports_100(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path
 ) -> None:
+    config = production_config(tmp_path)
     evidence = tmp_path / "evidence"
-    write_evidence_bundle(load_config(CONFIG), evidence)
+    write_evidence_bundle(load_config(config), evidence)
     complete_live_evidence(evidence)
 
     assert invoke_cli(
         monkeypatch,
-        ["evidence-verify", "-c", str(CONFIG), "-e", str(evidence)],
+        ["evidence-verify", "-c", str(config), "-e", str(evidence)],
     ) == 0
     assert "100/100" in capsys.readouterr().out
 
     assert invoke_cli(
         monkeypatch,
-        ["score", "-c", str(CONFIG), "-e", str(evidence)],
+        ["score", "-c", str(config), "-e", str(evidence)],
     ) == 0
     assert "Validated deployment production maturity" in capsys.readouterr().out
 
@@ -90,12 +104,13 @@ def test_cli_verifies_live_evidence_and_reports_100(
 def test_cli_rejects_incomplete_live_evidence(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path
 ) -> None:
+    config = production_config(tmp_path)
     evidence = tmp_path / "evidence"
-    write_evidence_bundle(load_config(CONFIG), evidence)
+    write_evidence_bundle(load_config(config), evidence)
 
     assert invoke_cli(
         monkeypatch,
-        ["evidence-verify", "-c", str(CONFIG), "-e", str(evidence)],
+        ["evidence-verify", "-c", str(config), "-e", str(evidence)],
     ) == 2
     assert "live evidence validation failed" in capsys.readouterr().err
 

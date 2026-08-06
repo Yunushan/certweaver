@@ -16,6 +16,22 @@ def sample() -> dict:
     return load_config(project_root() / "config" / "certweaver.example.yml")
 
 
+def strict_sample(tmp_path) -> dict:
+    source = tmp_path / "certweaver.yml"
+    source.write_text(
+        (project_root() / "config" / "certweaver.example.yml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "rke2-token").write_text("a-strong-test-rke2-token\n", encoding="utf-8")
+    (secrets / "keepalived-auth").write_text("strong-auth\n", encoding="utf-8")
+    (secrets / "etcd-s3.env").write_text(
+        "etcd-s3-endpoint=https://s3.example\n", encoding="utf-8"
+    )
+    return load_config(source)
+
+
 def test_repo_score_is_repo_local_target() -> None:
     assert repo_score() == (97, 100)
     assert "97/100" in score_markdown()
@@ -71,14 +87,15 @@ def _write_complete_live_evidence(destination) -> None:
 
 def test_live_evidence_requires_complete_sanitized_attestations(tmp_path) -> None:
     evidence = tmp_path / "evidence"
-    write_evidence_bundle(sample(), evidence)
+    config = strict_sample(tmp_path)
+    write_evidence_bundle(config, evidence)
 
-    incomplete = verify_live_evidence(evidence, sample())
+    incomplete = verify_live_evidence(evidence, config)
     assert not incomplete.ok
     assert any("required evidence artifact is missing" in error for error in incomplete.errors)
 
     _write_complete_live_evidence(evidence)
-    complete = verify_live_evidence(evidence, sample())
+    complete = verify_live_evidence(evidence, config)
     assert complete.ok
     assert len(complete.checked_artifacts) == sum(
         len(requirement.artifacts) for requirement in REQUIRED_EVIDENCE
@@ -87,7 +104,8 @@ def test_live_evidence_requires_complete_sanitized_attestations(tmp_path) -> Non
 
 def test_live_evidence_rejects_secrets_and_placeholders(tmp_path) -> None:
     evidence = tmp_path / "evidence"
-    write_evidence_bundle(sample(), evidence)
+    config = strict_sample(tmp_path)
+    write_evidence_bundle(config, evidence)
     _write_complete_live_evidence(evidence)
 
     (evidence / "secret-handling" / "attestation.json").write_text(
@@ -96,24 +114,27 @@ def test_live_evidence_rejects_secrets_and_placeholders(tmp_path) -> None:
         encoding="utf-8",
     )
     (evidence / "incident-readiness.md").write_text("TODO\n", encoding="utf-8")
+    (evidence / "private.key").write_text("redacted\n", encoding="utf-8")
 
-    result = verify_live_evidence(evidence, sample())
+    result = verify_live_evidence(evidence, config)
     assert not result.ok
     assert any("sensitive material" in error for error in result.errors)
+    assert any("sensitive-looking filenames" in error for error in result.errors)
     assert any("placeholder evidence" in error for error in result.errors)
 
 
 def test_live_evidence_rejects_invalid_manifest_and_attestation(tmp_path) -> None:
     evidence = tmp_path / "evidence"
-    write_evidence_bundle(sample(), evidence)
+    config = strict_sample(tmp_path)
+    write_evidence_bundle(config, evidence)
     _write_complete_live_evidence(evidence)
 
     manifest = evidence / "manifest.json"
     manifest.write_text("not-json\n", encoding="utf-8")
-    result = verify_live_evidence(evidence, sample())
+    result = verify_live_evidence(evidence, config)
     assert any("manifest is not valid JSON" in error for error in result.errors)
 
-    write_evidence_bundle(sample(), evidence)
+    write_evidence_bundle(config, evidence)
     _write_complete_live_evidence(evidence)
     attestation = evidence / "rke2-ha" / "attestation.json"
     invalid_values = (
@@ -134,5 +155,5 @@ def test_live_evidence_rejects_invalid_manifest_and_attestation(tmp_path) -> Non
     )
     for value in invalid_values:
         attestation.write_text(value, encoding="utf-8")
-        result = verify_live_evidence(evidence, sample())
+        result = verify_live_evidence(evidence, config)
         assert not result.ok
