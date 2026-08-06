@@ -1,3 +1,7 @@
 # Maintainers
 
-The initial repository intentionally leaves maintainer identities unset. Replace this file with verified names, hosting-platform handles, code-owner paths, and a private security contact before public launch.
+The current repository maintainer and code owner is [@Yunushan](https://github.com/Yunushan).
+
+Security reports must use GitHub's private vulnerability reporting flow. Do not
+include private keys, tokens, kubeconfigs, or customer infrastructure details in
+issues or pull requests.

@@ -6,6 +6,7 @@ install:
 
 lint:
 	ruff check src tests
+	python3 scripts/verify_supply_chain.py
 	yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
 	ansible-lint playbooks roles
 

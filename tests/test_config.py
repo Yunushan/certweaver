@@ -12,6 +12,25 @@ def test_sample_is_valid_except_expected_missing_secret_warnings() -> None:
     assert any("Secret file" in warning for warning in result.warnings)
 
 
+def test_strict_production_validation_rejects_missing_secret_material() -> None:
+    result = validate_config(sample(), strict=True)
+    assert any("Secret file does not exist" in error for error in result.errors)
+
+
+def test_strict_production_validation_rejects_unpinned_addon() -> None:
+    data = sample()
+    data["spec"]["versions"]["certManager"] = ""
+    result = validate_config(data, strict=True)
+    assert any("spec.versions.certManager" in error for error in result.errors)
+
+
+def test_adapter_checksum_must_be_sha256() -> None:
+    data = sample()
+    data["spec"]["adapters"]["checksums"] = {"example": "not-a-checksum"}
+    result = validate_config(data)
+    assert any("spec.adapters.checksums.example" in error for error in result.errors)
+
+
 def test_one_node_is_rejected_for_production_ha() -> None:
     data = sample()
     data["spec"]["platform"]["nodes"] = data["spec"]["platform"]["nodes"][:1]

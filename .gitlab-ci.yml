@@ -3,23 +3,25 @@ stages: [test, security, package]
 default:
   image: python:3.11-slim
   before_script:
-    - pip install -e '.[dev]'
+    - pip install -c constraints/ci.txt -e '.[dev]'
     - ansible-galaxy collection install -r collections/requirements.yml
 
 lint-test:
   stage: test
   script:
     - ruff check src tests
+    - python scripts/verify_supply_chain.py
     - yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
     - ansible-lint playbooks roles
     - pytest --cov=certweaver --cov-report=term-missing
+    - pip-audit --strict
     - ./scripts/validate-all.sh
     - certweaver matrix
 
 secret-scan:
   stage: security
   image:
-    name: zricethezav/gitleaks:latest
+    name: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
     entrypoint: [""]
   before_script: []
   script:

@@ -4,7 +4,9 @@ After=network-online.target
 Wants=network-online.target
 
 [Container]
-Image=keyfactor/ejbca-ce:{{ certweaver_adapter_versions.ejbca_image }}
+Image={{ certweaver_adapter_options.get('ejbca-community', {}).get(
+  'image', 'keyfactor/ejbca-ce:' ~ certweaver_adapter_versions.ejbca_image
+) }}
 ContainerName=certweaver-ejbca
 PublishPort={{ certweaver_adapter_options.get('ejbca-community', {}).get('httpsPort', 8443) }}:8443
 EnvironmentFile={{ certweaver_adapter_options.get('ejbca-community', {}).get('environmentFile', '/etc/certweaver/secrets/ejbca.env') }}

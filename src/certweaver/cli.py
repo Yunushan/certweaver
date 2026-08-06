@@ -16,11 +16,16 @@ from .render import execution_plan, write_inventory
 
 def _config_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("-c", "--config", default="certweaver.yml", help="Configuration YAML")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail on production warnings such as missing secrets and unpinned artifacts",
+    )
 
 
-def _print_validation(config_path: str, fail: bool = True) -> int:
+def _print_validation(config_path: str, *, strict: bool = False, fail: bool = True) -> int:
     config = load_config(config_path)
-    result = validate_config(config)
+    result = validate_config(config, strict=strict)
     for warning in result.warnings:
         print(f"WARNING: {warning}")
     for error in result.errors:
@@ -32,7 +37,7 @@ def _print_validation(config_path: str, fail: bool = True) -> int:
 
 
 def command_validate(args: argparse.Namespace) -> int:
-    return _print_validation(args.config)
+    return _print_validation(args.config, strict=args.strict)
 
 
 def command_matrix(_: argparse.Namespace) -> int:
@@ -60,7 +65,7 @@ def command_matrix(_: argparse.Namespace) -> int:
 
 def command_plan(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config)
+    result = validate_config(config, strict=args.strict)
     result.require_ok()
     for idx, item in enumerate(execution_plan(config), start=1):
         print(f"{idx:02d}. {item}")
@@ -71,7 +76,7 @@ def command_plan(args: argparse.Namespace) -> int:
 
 def command_render(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    validate_config(config).require_ok()
+    validate_config(config, strict=args.strict).require_ok()
     destination = write_inventory(config, args.output)
     print(destination)
     return 0
@@ -84,7 +89,7 @@ def command_score(_: argparse.Namespace) -> int:
 
 def command_evidence(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config)
+    result = validate_config(config, strict=args.strict)
     result.require_ok()
     files = write_evidence_bundle(config, args.output)
     score, maximum = repo_score()
@@ -111,7 +116,7 @@ def _playbook_for_mode(mode: str) -> str:
 
 def command_doctor(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config)
+    result = validate_config(config, strict=args.strict)
     checks = {
         "python": sys.executable,
         "ansible-playbook": shutil.which("ansible-playbook"),
@@ -135,7 +140,7 @@ def command_doctor(args: argparse.Namespace) -> int:
 
 def command_deploy(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config)
+    result = validate_config(config, strict=True)
     result.require_ok()
     root = project_root()
     inventory = Path(args.inventory)

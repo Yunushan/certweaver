@@ -4,7 +4,9 @@ After=network-online.target
 Wants=network-online.target
 
 [Container]
-Image=openbao/openbao:{{ certweaver_adapter_versions.openbao_image }}
+Image={{ certweaver_adapter_options.get('openbao-pki', {}).get(
+  'image', 'openbao/openbao:' ~ certweaver_adapter_versions.openbao_image
+) }}
 ContainerName=certweaver-openbao
 Volume=/etc/openbao:/openbao/config:Z
 Volume=/var/lib/openbao:/openbao/data:Z

@@ -14,11 +14,13 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - run: pip install -e '.[dev]'
+      - run: pip install -c constraints/ci.txt -e '.[dev]'
       - run: ansible-galaxy collection install -r collections/requirements.yml
       - run: ruff check src tests
+      - run: python scripts/verify_supply_chain.py
       - run: yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
       - run: ansible-lint playbooks roles
       - run: pytest --cov=certweaver --cov-report=term-missing
+      - run: pip-audit --strict
       - run: ./scripts/validate-all.sh
       - run: certweaver matrix

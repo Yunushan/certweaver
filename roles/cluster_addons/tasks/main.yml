@@ -442,6 +442,31 @@
       - kubectl
       - --kubeconfig
       - "{{ certweaver_kubeconfig_path }}"
+      - wait
+      - --for=condition=Ready
+      - nodes
+      - --all
+      - --timeout=300s
+  changed_when: false
+
+- name: Verify Kubernetes API readiness through the configured endpoint
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
+      - get
+      - --raw=/readyz
+  register: certweaver_api_ready
+  changed_when: false
+  failed_when: certweaver_api_ready.rc != 0 or certweaver_api_ready.stdout | trim != 'ok'
+
+- name: Confirm cluster resources are queryable after add-on installation
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ certweaver_kubeconfig_path }}"
       - get
       - pods
       - --all-namespaces

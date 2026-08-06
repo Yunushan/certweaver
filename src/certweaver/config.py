@@ -23,6 +23,45 @@ VALID_MODES = {
     "windows",
 }
 
+KUBERNETES_MODES = {"rke2-ha", "k3s-ha", "existing-kubernetes"}
+
+ADAPTER_VERSION_REQUIREMENTS: dict[str, dict[str, tuple[str, ...]]] = {
+    "step-ca": {
+        "kubernetes": ("step_ca_chart",),
+        "standalone": ("step_ca",),
+        "docker": ("step_ca",),
+    },
+    "openbao-pki": {
+        "kubernetes": ("openbao_chart",),
+        "docker": ("openbao_image",),
+    },
+    "acme-sh": {"any": ("acme_sh_ref",)},
+    "boulder": {"any": ("boulder_ref",)},
+    "caddy-auto-https": {"any": ("caddy",)},
+    "cfssl": {"any": ("cfssl",)},
+    "dehydrated": {"any": ("dehydrated_ref",)},
+    "ejbca-community": {"any": ("ejbca_image",)},
+    "lego": {"any": ("lego",)},
+    "lemur": {"any": ("lemur_ref",)},
+    "spire": {"any": ("spire_chart",)},
+    "traefik-acme": {
+        "standalone": ("traefik",),
+        "docker": ("traefik",),
+    },
+    "win-acme": {"windows": ("win_acme",)},
+}
+
+ADAPTER_CHECKSUM_REQUIREMENTS: dict[str, tuple[str, ...]] = {
+    "cfssl": ("cfssl", "cfssljson", "cfssl-bundle"),
+    "win-acme": ("win_acme",),
+}
+
+CONTAINER_IMAGE_ADAPTERS = {
+    "step-ca": "step-ca",
+    "openbao-pki": "openbao-pki",
+    "ejbca-community": "ejbca-community",
+}
+
 
 @dataclass
 class ValidationResult:
@@ -92,7 +131,32 @@ def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and bool(re.fullmatch(r"sha256:[a-fA-F0-9]{64}", value))
 
 
-def validate_config(data: dict[str, Any]) -> ValidationResult:
+def _install_mode(data: dict[str, Any], mode: str, slug: str) -> str:
+    explicit = _get(data, f"spec.adapters.options.{slug}.installMode")
+    if explicit:
+        return str(explicit)
+    if mode in KUBERNETES_MODES:
+        return "kubernetes"
+    if mode == "docker":
+        return "docker"
+    if mode in {"standalone", "raw"}:
+        return "standalone"
+    if mode == "windows":
+        return "windows"
+    return "any"
+
+
+def _adapter_version_keys(data: dict[str, Any], mode: str, slug: str) -> tuple[str, ...]:
+    requirements = ADAPTER_VERSION_REQUIREMENTS.get(slug, {})
+    install_mode = _install_mode(data, mode, slug)
+    return requirements.get(install_mode, requirements.get("any", ()))
+
+
+def _add_warning_or_error(result: ValidationResult, strict: bool, message: str) -> None:
+    (result.errors if strict else result.warnings).append(message)
+
+
+def validate_config(data: dict[str, Any], *, strict: bool = False) -> ValidationResult:
     result = ValidationResult()
     schema_file = project_root() / "config" / "certweaver.schema.json"
     schema = json.loads(schema_file.read_text(encoding="utf-8"))
@@ -235,7 +299,7 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
                 "spec.adapters.acknowledge after reviewing its risk"
             )
 
-    if mode in {"rke2-ha", "k3s-ha", "existing-kubernetes"}:
+    if mode in KUBERNETES_MODES:
         cert_manager_enabled = _get(data, "spec.addons.certManager.enabled", False)
         if "cert-manager" not in enabled:
             result.warnings.append("Kubernetes mode does not enable cert-manager")
@@ -289,6 +353,19 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
                     f"Internal CA provider {provider!r} is not enabled as a local adapter; "
                     "verify that an external issuer endpoint is configured"
                 )
+        if strict and environment == "production":
+            if _get(data, "spec.platform.fetchKubeconfig", False):
+                result.errors.append(
+                    "Strict production validation forbids fetching a cluster kubeconfig "
+                    "to the controller"
+                )
+            monitoring_rules = _get(data, "spec.addons.monitoring.prometheusRules", False)
+            external_monitoring = _get(data, "spec.monitoring.external", False)
+            if not monitoring_rules and not external_monitoring:
+                result.errors.append(
+                    "Strict production validation requires Prometheus alert rules or an explicit "
+                    "external monitoring declaration"
+                )
 
     source = Path(data.get("__source_path__", ".")).parent
     secret_fields: tuple[str, ...] = ()
@@ -297,13 +374,21 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
             "spec.secrets.rke2TokenFile",
             "spec.secrets.keepalivedAuthFile",
         )
+        if _get(data, "spec.rke2.etcdSnapshots.s3.enabled", False):
+            secret_fields += ("spec.rke2.etcdSnapshots.s3.configSecretFile",)
     for dotted in secret_fields:
         value = _get(data, dotted)
         if not value:
+            if strict and _get(data, "spec.environment") == "production":
+                result.errors.append(f"Strict production validation requires {dotted}")
             continue
         secret_path = source / value
         if not secret_path.exists():
-            result.warnings.append(f"Secret file does not exist yet: {value}")
+            _add_warning_or_error(
+                result,
+                strict and _get(data, "spec.environment") == "production",
+                f"Secret file does not exist: {value}",
+            )
             continue
         try:
             secret = secret_path.read_text(encoding="utf-8").strip()
@@ -314,6 +399,8 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
             result.errors.append("RKE2 token file must contain at least 16 characters")
         if dotted.endswith("keepalivedAuthFile") and len(secret) < 8:
             result.errors.append("Keepalived auth file must contain at least 8 characters")
+        if dotted.endswith("configSecretFile") and not secret:
+            result.errors.append("RKE2 S3 snapshot configuration file must not be empty")
 
     versions = _get(data, "spec.versions", {}) or {}
     if environment == "production":
@@ -338,8 +425,10 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
         for required in dict.fromkeys(required_versions):
             value = versions.get(required)
             if value in (None, "", "latest"):
-                result.warnings.append(
-                    f"Production deployment should pin spec.versions.{required}"
+                _add_warning_or_error(
+                    result,
+                    strict,
+                    f"Production deployment requires pinned spec.versions.{required}",
                 )
         installer_checksum_key = {
             "rke2-ha": "rke2InstallerChecksum",
@@ -355,8 +444,45 @@ def validate_config(data: dict[str, Any]) -> ValidationResult:
             and not versions.get("helmChecksum")
             and not versions.get("helmChecksums")
         ):
-            result.warnings.append(
-                "Production Kubernetes deployment should pin a Helm archive SHA-256 checksum"
+            _add_warning_or_error(
+                result,
+                strict,
+                "Production Kubernetes deployment requires a valid Helm archive SHA-256 checksum",
             )
+
+        adapter_versions = _get(data, "spec.adapters.versions", {}) or {}
+        adapter_checksums = _get(data, "spec.adapters.checksums", {}) or {}
+        for key, checksum in adapter_checksums.items():
+            if not _is_sha256(checksum):
+                result.errors.append(
+                    f"spec.adapters.checksums.{key} must use sha256:<64 hex characters>"
+                )
+        for slug in enabled:
+            for key in _adapter_version_keys(data, mode, slug):
+                if adapter_versions.get(key) in (None, "", "latest"):
+                    _add_warning_or_error(
+                        result,
+                        strict,
+                        f"Production deployment requires pinned spec.adapters.versions.{key} "
+                        f"for enabled adapter {slug}",
+                    )
+            for key in ADAPTER_CHECKSUM_REQUIREMENTS.get(slug, ()):
+                if not _is_sha256(adapter_checksums.get(key)):
+                    _add_warning_or_error(
+                        result,
+                        strict,
+                        f"Production deployment requires spec.adapters.checksums.{key} "
+                        f"for enabled adapter {slug}",
+                    )
+            image_key = CONTAINER_IMAGE_ADAPTERS.get(slug)
+            if image_key and _install_mode(data, mode, slug) == "docker":
+                image = _get(data, f"spec.adapters.options.{image_key}.image", "")
+                if not isinstance(image, str) or "@sha256:" not in image:
+                    _add_warning_or_error(
+                        result,
+                        strict,
+                        f"Production container adapter {slug} requires an immutable "
+                        "spec.adapters.options image reference with @sha256:<digest>",
+                    )
 
     return result

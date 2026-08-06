@@ -14,12 +14,15 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.11"
-      - run: pip install -e '.[dev]' build
+      - run: pip install -c constraints/ci.txt -e '.[dev]'
       - run: ansible-galaxy collection install -r collections/requirements.yml
+      - run: python scripts/verify_supply_chain.py
       - run: make lint
       - run: make test
+      - run: pip-audit --strict
       - run: ./scripts/validate-all.sh
       - run: python -m build
+      - run: python scripts/verify_release.py --tag "${GITHUB_REF_NAME}"
       - run: mkdir -p dist
       - run: >-
           git archive --format=tar.gz

@@ -61,13 +61,20 @@ def test_cli_deploy_builds_expected_ansible_command(
         return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr(cli.subprocess, "run", fake_run)
+    config = tmp_path / "config.yml"
+    config.write_text(CONFIG.read_text(encoding="utf-8"), encoding="utf-8")
+    secrets = tmp_path / "secrets"
+    secrets.mkdir()
+    (secrets / "rke2-token").write_text("a-strong-test-rke2-token\n", encoding="utf-8")
+    (secrets / "keepalived-auth").write_text("strong-auth\n", encoding="utf-8")
+    (secrets / "etcd-s3.env").write_text("etcd-s3-endpoint=https://s3.example\n", encoding="utf-8")
     inventory = tmp_path / "inventory.yml"
     assert invoke_cli(
         monkeypatch,
         [
             "deploy",
             "-c",
-            str(CONFIG),
+            str(config),
             "-i",
             str(inventory),
             "--check",
