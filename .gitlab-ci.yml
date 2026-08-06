@@ -14,7 +14,7 @@ lint-test:
     - yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
     - ansible-lint playbooks roles
     - pytest --cov=certweaver --cov-report=term-missing
-    - pip-audit --strict --skip-editable
+    - bash scripts/audit-dependencies.sh
     - ./scripts/validate-all.sh
     - certweaver matrix
 

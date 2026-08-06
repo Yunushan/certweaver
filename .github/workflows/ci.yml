@@ -22,6 +22,6 @@ jobs:
       - run: yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
       - run: ansible-lint playbooks roles
       - run: pytest --cov=certweaver --cov-report=term-missing
-      - run: pip-audit --strict --skip-editable
+      - run: bash scripts/audit-dependencies.sh
       - run: ./scripts/validate-all.sh
       - run: certweaver matrix

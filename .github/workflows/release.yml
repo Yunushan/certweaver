@@ -19,7 +19,7 @@ jobs:
       - run: python scripts/verify_supply_chain.py
       - run: make lint
       - run: make test
-      - run: pip-audit --strict --skip-editable
+      - run: bash scripts/audit-dependencies.sh
       - run: ./scripts/validate-all.sh
       - run: python -m build
       - run: python scripts/verify_release.py --tag "${GITHUB_REF_NAME}"
