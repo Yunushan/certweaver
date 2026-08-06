@@ -11,7 +11,7 @@ permissions:
   security-events: write
 jobs:
   analyze:
-    name: Analyze Python
+    name: CodeQL / Analyze Python
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
