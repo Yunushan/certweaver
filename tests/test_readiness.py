@@ -55,6 +55,7 @@ def _write_complete_live_evidence(destination) -> None:
         "status": "pass",
         "observedAt": "2026-08-06T12:00:00Z",
         "operator": "test-operator",
+        "environment": "staging",
         "source": "automated-test-fixture",
     }
     for requirement in REQUIRED_EVIDENCE:
@@ -127,6 +128,7 @@ def test_live_evidence_rejects_invalid_manifest_and_attestation(tmp_path) -> Non
                 "observedAt": "2026-08-06T12:00:00Z",
                 "operator": "",
                 "source": "test",
+                "environment": "staging",
             }
         ),
     )

@@ -16,7 +16,7 @@ CONFIG = project_root() / "config" / "certweaver.example.yml"
 def complete_live_evidence(destination) -> None:
     attestation = (
         '{"status":"pass","observedAt":"2026-08-06T12:00:00Z",'
-        '"operator":"test","source":"cli-test"}'
+        '"operator":"test","environment":"staging","source":"cli-test"}'
     )
     for requirement in REQUIRED_EVIDENCE:
         for relative in requirement.artifacts:

@@ -42,7 +42,7 @@ certweaver score -c certweaver.yml -e .certweaver/evidence
 The verification command requires every listed artifact to be non-empty, binds
 the bundle to the configuration SHA-256, rejects private key or credential
 material, rejects placeholders, and requires a timezone-aware `status: pass`
-attestation with an operator and source for each control. Keep raw kubeconfigs,
+attestation with an operator, environment, and source for each control. Keep raw kubeconfigs,
 tokens, private hostnames, and secret values outside the committed bundle.
 
 For repeatable hosted acceptance, configure a protected GitHub `staging`

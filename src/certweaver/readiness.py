@@ -200,8 +200,11 @@ _SENSITIVE_EVIDENCE_PATTERNS = (
     re.compile(r"-----BEGIN [^-]*PRIVATE KEY-----", re.IGNORECASE),
     re.compile(
         r'(?im)(?:^|\")(?:token|client-key-data|password|passphrase|rke2_token|'
-        r'keepalived_auth|aws_secret_access_key|secret_access_key)\"?\s*[:=]'
+        r'keepalived_auth|aws_secret_access_key|secret_access_key|private_key|'
+        r'unseal_key|bearer|authorization)\"?\s*[:=]'
     ),
+    re.compile(r"(?im)^\s*(?:clusters|contexts|users):\s*$"),
+    re.compile(r"(?im)^\s*apiVersion:\s*v1\s*$\n\s*kind:\s*Config\s*$"),
 )
 _PLACEHOLDER_PATTERN = re.compile(
     r"(?i)\b(?:TODO|TBD|REPLACE_ME|CHANGE_ME|NOT_COLLECTED|INSERT_.*?_HERE)\b"
@@ -295,7 +298,7 @@ def requirements_markdown() -> str:
         "Keep secrets, tokens, kubeconfigs, and private hostnames out of committed reports.",
         "",
         "Each artifact must be non-empty and each `attestation.json` must record a "
-        "timezone-aware observation, an operator, a source, and `status: pass`.",
+        "timezone-aware observation, an operator, environment, source, and `status: pass`.",
         "",
         "| Control | Required evidence | Artifacts | Status |",
         "|---|---|---|---|",
@@ -347,7 +350,7 @@ def _validate_attestation(path: Path, text: str, errors: list[str]) -> None:
             parsed = None
         if parsed is None or parsed.tzinfo is None:
             errors.append(f"{path.name}: observedAt must be timezone-aware ISO-8601")
-    for key in ("operator", "source"):
+    for key in ("operator", "source", "environment"):
         if not isinstance(value.get(key), str) or not value[key].strip():
             errors.append(f"{path.name}: attestation {key} is required")
 
@@ -478,7 +481,8 @@ VIP owner before/after failover and API checks, snapshot restore, external scans
 from management and non-management networks, trust-manager target objects,
 approved secret-storage attestation, upgrade rehearsal, and incident readiness.
 Create the exact artifacts listed by required-live-evidence.md, with a
-timezone-aware attestation.json containing status=pass, operator, and source.
+timezone-aware attestation.json containing status=pass, operator, environment,
+and source.
 NOTE
 """
 
