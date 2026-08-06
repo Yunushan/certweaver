@@ -140,6 +140,8 @@ def _install_mode(data: dict[str, Any], mode: str, slug: str) -> str:
     if mode == "docker":
         return "docker"
     if mode in {"standalone", "raw"}:
+        if slug == "openbao-pki":
+            return "docker"
         return "standalone"
     if mode == "windows":
         return "windows"

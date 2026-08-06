@@ -39,6 +39,14 @@ certweaver evidence-verify -c certweaver.yml -e .certweaver/evidence
 certweaver score -c certweaver.yml -e .certweaver/evidence
 ```
 
+For the protected GitHub Actions workflow, stage the redacted manual artifacts
+listed in `required-live-evidence.md` on the self-hosted runner under
+`/var/lib/certweaver/staging-evidence/manual` before dispatching
+`Staging Evidence`. The workflow copies that directory into the generated
+bundle, rejects symlinks and paths outside the protected evidence root, and
+then runs the same verifier. Do not place kubeconfigs, tokens, private keys, or
+credential values in that directory.
+
 The verification command requires every listed artifact to be non-empty, binds
 the bundle to the configuration SHA-256, rejects private key or credential
 material, rejects placeholders, and requires a timezone-aware `status: pass`

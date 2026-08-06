@@ -298,8 +298,10 @@ def requirements_markdown() -> str:
         "",
         "Keep secrets, tokens, kubeconfigs, and private hostnames out of committed reports.",
         "",
-        "Each artifact must be non-empty and each `attestation.json` must record a "
-        "timezone-aware observation, an operator, environment, source, and `status: pass`.",
+        (
+            "Each artifact must be non-empty and each `attestation.json` must record a "
+            + "timezone-aware observation, an operator, environment, source, and `status: pass`."
+        ),
         "",
         "| Control | Required evidence | Artifacts | Status |",
         "|---|---|---|---|",

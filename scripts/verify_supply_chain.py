@@ -11,6 +11,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 ACTION_RE = re.compile(r"\buses:\s*([^\s#]+)")
 SHA_RE = re.compile(r"@[0-9a-f]{40}$")
+COMPOSE_IMAGE_RE = re.compile(
+    r"\s+image:\s+\$\{(?P<repository>[A-Z0-9_]+):\?set (?P=repository)\}@"
+    r"\$\{(?P<digest>[A-Z0-9_]+):\?set (?P=digest)\}\s*$"
+)
+COMPOSE_IMAGE_PREFIXES = ("STEP_CA", "OPENBAO", "EJBCA", "CADDY", "TRAEFIK")
 
 
 def _workflow_errors() -> list[str]:
@@ -54,11 +59,21 @@ def _compose_errors() -> list[str]:
     errors: list[str] = []
     path = ROOT / "docker" / "compose.pki.yml"
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        if re.match(r"\s+image:\s+", line) and ":?pin " not in line:
+        if re.match(r"\s+image:\s+", line) and not COMPOSE_IMAGE_RE.fullmatch(line):
             errors.append(
                 f"{path.relative_to(ROOT)}:{line_number}: image must require an explicit "
-                "pinned reference"
+                "repository and sha256 digest"
             )
+    wrapper = ROOT / "docker" / "compose-pki.sh"
+    if not wrapper.is_file():
+        errors.append("docker/compose-pki.sh: immutable-image wrapper is required")
+    else:
+        wrapper_text = wrapper.read_text(encoding="utf-8")
+        if "exec docker compose" not in wrapper_text:
+            errors.append("docker/compose-pki.sh: wrapper must execute Docker Compose")
+        for prefix in COMPOSE_IMAGE_PREFIXES:
+            if prefix not in wrapper_text:
+                errors.append(f"docker/compose-pki.sh: missing validation for {prefix} image")
     return errors
 
 

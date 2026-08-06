@@ -13,7 +13,7 @@
 - Do not claim a deployment is 100/100 production ready until the scorecard in `docs/production-readiness.md` has live staging evidence.
 - Generate the bundle with `certweaver evidence`, run the generated `live-checks.sh` on the staging control-plane host, and require `certweaver evidence-verify` to pass before publishing a 100/100 assessment.
 - Use `certweaver deploy` for production configurations; deployment always enables strict validation and refuses missing secret files, floating versions, invalid checksums, and mutable container images.
-- For Docker or Podman adapter images, provide a complete image reference ending in `@sha256:<digest>` through the adapter option or Compose environment variable. A tag alone is not production evidence.
+- For Docker or Podman adapter images, provide a complete image reference ending in `@sha256:<digest>` through the adapter option. For `docker/compose.pki.yml`, set each service's `*_IMAGE_REPOSITORY` and `*_IMAGE_DIGEST` variables and invoke `docker/compose-pki.sh`; the wrapper rejects tags, non-SHA-256 digests, and mutable references before Compose starts.
 
 Before deploying the default RKE2 profile, create `secrets/etcd-s3.env` outside Git with the S3 configuration accepted by RKE2, for example:
 

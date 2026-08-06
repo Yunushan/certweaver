@@ -2,7 +2,7 @@ name: certweaver-pki
 services:
   step-ca:
     profiles: [step-ca]
-    image: ${STEP_CA_IMAGE:?pin STEP_CA_IMAGE}
+    image: ${STEP_CA_IMAGE_REPOSITORY:?set STEP_CA_IMAGE_REPOSITORY}@${STEP_CA_IMAGE_DIGEST:?set STEP_CA_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["9000:9000"]
     volumes:
@@ -11,7 +11,7 @@ services:
 
   openbao:
     profiles: [openbao]
-    image: ${OPENBAO_IMAGE:?pin OPENBAO_IMAGE}
+    image: ${OPENBAO_IMAGE_REPOSITORY:?set OPENBAO_IMAGE_REPOSITORY}@${OPENBAO_IMAGE_DIGEST:?set OPENBAO_IMAGE_DIGEST}
     restart: unless-stopped
     cap_add: [IPC_LOCK]
     ports: ["8200:8200"]
@@ -22,7 +22,7 @@ services:
 
   ejbca:
     profiles: [ejbca]
-    image: ${EJBCA_IMAGE:?pin EJBCA_IMAGE}
+    image: ${EJBCA_IMAGE_REPOSITORY:?set EJBCA_IMAGE_REPOSITORY}@${EJBCA_IMAGE_DIGEST:?set EJBCA_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["8443:8443"]
     env_file: [./secrets/ejbca.env]
@@ -31,7 +31,7 @@ services:
 
   caddy:
     profiles: [caddy]
-    image: ${CADDY_IMAGE:?pin CADDY_IMAGE}
+    image: ${CADDY_IMAGE_REPOSITORY:?set CADDY_IMAGE_REPOSITORY}@${CADDY_IMAGE_DIGEST:?set CADDY_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     volumes:
@@ -41,7 +41,7 @@ services:
 
   traefik:
     profiles: [traefik]
-    image: ${TRAEFIK_IMAGE:?pin TRAEFIK_IMAGE}
+    image: ${TRAEFIK_IMAGE_REPOSITORY:?set TRAEFIK_IMAGE_REPOSITORY}@${TRAEFIK_IMAGE_DIGEST:?set TRAEFIK_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     volumes:

@@ -8,6 +8,11 @@ on:
         required: true
         default: config/certweaver.example.yml
         type: string
+      manual_evidence_dir:
+        description: Protected runner path containing the redacted manual artifacts
+        required: true
+        default: /var/lib/certweaver/staging-evidence/manual
+        type: string
 
 permissions:
   contents: read
@@ -36,6 +41,25 @@ jobs:
         env:
           CERTWEAVER_NODES: ${{ secrets.CERTWEAVER_NODES }}
           KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+      - name: Add operator-collected artifacts
+        env:
+          MANUAL_EVIDENCE_DIR: ${{ inputs.manual_evidence_dir }}
+        run: |
+          set -euo pipefail
+          allowed_root="/var/lib/certweaver/staging-evidence"
+          manual_dir="$(realpath -e -- "$MANUAL_EVIDENCE_DIR")"
+          case "$manual_dir" in
+            "$allowed_root"|"$allowed_root"/*) ;;
+            *)
+              echo "manual_evidence_dir must stay below $allowed_root" >&2
+              exit 2
+              ;;
+          esac
+          if [[ -n "$(find "$manual_dir" -type l -print -quit)" ]]; then
+            echo "manual evidence must not contain symlinks" >&2
+            exit 2
+          fi
+          cp -a --no-preserve=ownership "$manual_dir"/. "$RUNNER_TEMP/certweaver-evidence"/
       - run: >-
           certweaver evidence-verify -c "${{ inputs.config }}"
           -e "$RUNNER_TEMP/certweaver-evidence"

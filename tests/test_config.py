@@ -31,6 +31,16 @@ def test_adapter_checksum_must_be_sha256() -> None:
     assert any("spec.adapters.checksums.example" in error for error in result.errors)
 
 
+def test_openbao_standalone_requires_container_pin() -> None:
+    data = sample()
+    data["spec"]["mode"] = "standalone"
+    data["spec"]["adapters"]["enabled"] = ["openbao-pki"]
+    data["spec"]["adapters"]["options"]["openbao-pki"].pop("installMode", None)
+    data["spec"]["adapters"]["versions"]["openbao_image"] = ""
+    result = validate_config(data, strict=True)
+    assert any("openbao_image" in error for error in result.errors)
+
+
 def test_one_node_is_rejected_for_production_ha() -> None:
     data = sample()
     data["spec"]["platform"]["nodes"] = data["spec"]["platform"]["nodes"][:1]
