@@ -11,6 +11,7 @@
 - Never share a public wildcard certificate/private key across unrelated trust zones unless a documented risk decision requires it.
 - Keep a sanitized evidence bundle for every production change: config hash, pinned versions, CI run, deployment plan, smoke test output, failover test, and restore-test reference.
 - Do not claim a deployment is 100/100 production ready until the scorecard in `docs/production-readiness.md` has live staging evidence.
+- Generate the bundle with `certweaver evidence`, run the generated `live-checks.sh` on the staging control-plane host, and require `certweaver evidence-verify` to pass before publishing a 100/100 assessment.
 - Use `certweaver deploy` for production configurations; deployment always enables strict validation and refuses missing secret files, floating versions, invalid checksums, and mutable container images.
 - For Docker or Podman adapter images, provide a complete image reference ending in `@sha256:<digest>` through the adapter option or Compose environment variable. A tag alone is not production evidence.
 

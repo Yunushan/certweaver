@@ -9,7 +9,12 @@ from pathlib import Path
 from . import __version__
 from .config import load_config, validate_config
 from .errors import CertWeaverError
-from .readiness import repo_score, score_markdown, write_evidence_bundle
+from .readiness import (
+    repo_score,
+    score_markdown,
+    verify_live_evidence,
+    write_evidence_bundle,
+)
 from .registry import load_registry, project_root
 from .render import execution_plan, write_inventory
 
@@ -86,8 +91,21 @@ def command_render(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_score(_: argparse.Namespace) -> int:
+def command_score(args: argparse.Namespace) -> int:
     print(score_markdown(), end="")
+    if args.evidence_dir:
+        config = load_config(args.config)
+        result = verify_live_evidence(args.evidence_dir, config)
+        if result.ok:
+            print("\nValidated deployment production maturity: **100/100**.")
+            print(f"Validated live evidence artifacts: {len(result.checked_artifacts)}")
+            return 0
+        print(
+            f"ERROR: live evidence validation failed ({len(result.errors)} issue(s)); "
+            "review the evidence bundle before claiming 100/100.",
+            file=sys.stderr,
+        )
+        return 2
     return 0
 
 
@@ -103,6 +121,22 @@ def command_evidence(args: argparse.Namespace) -> int:
         print(f"WARNING: {warning}")
     for path in files:
         print(path)
+    return 0
+
+
+def command_evidence_verify(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    result = verify_live_evidence(args.evidence_dir, config)
+    if not result.ok:
+        print(
+            f"ERROR: live evidence validation failed ({len(result.errors)} issue(s)); "
+            "review the evidence bundle.",
+            file=sys.stderr,
+        )
+        return 2
+    print("Live evidence validation passed")
+    print("Validated deployment production maturity: 100/100")
+    print(f"Validated live evidence artifacts: {len(result.checked_artifacts)}")
     return 0
 
 
@@ -191,12 +225,31 @@ def build_parser() -> argparse.ArgumentParser:
     render.set_defaults(func=command_render)
 
     score = sub.add_parser("score", help="Show the repo-local production maturity score")
+    score.add_argument(
+        "-c", "--config", default="certweaver.yml", help="Configuration YAML for evidence binding"
+    )
+    score.add_argument(
+        "-e",
+        "--evidence-dir",
+        help="Validate a complete live evidence bundle and report deployment maturity",
+    )
     score.set_defaults(func=command_score)
 
     evidence = sub.add_parser("evidence", help="Write a sanitized production evidence bundle")
     _config_argument(evidence)
     evidence.add_argument("-o", "--output", default=".certweaver/evidence")
     evidence.set_defaults(func=command_evidence)
+
+    evidence_verify = sub.add_parser(
+        "evidence-verify", help="Verify sanitized live evidence for a deployment"
+    )
+    evidence_verify.add_argument(
+        "-c", "--config", required=True, help="Configuration YAML used for the deployment"
+    )
+    evidence_verify.add_argument(
+        "-e", "--evidence-dir", required=True, help="Evidence bundle directory"
+    )
+    evidence_verify.set_defaults(func=command_evidence_verify)
 
     doctor = sub.add_parser("doctor", help="Check local prerequisites")
     _config_argument(doctor)

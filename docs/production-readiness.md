@@ -29,6 +29,31 @@ certweaver score
 certweaver evidence -c certweaver.yml -o .certweaver/evidence
 ```
 
+On the staging control-plane host, collect the machine-readable portion and then
+complete the disruptive or externally sourced checks in the generated bundle:
+
+```bash
+bash .certweaver/evidence/live-checks.sh .certweaver/evidence
+# Add the exact artifacts listed in required-live-evidence.md.
+certweaver evidence-verify -c certweaver.yml -e .certweaver/evidence
+certweaver score -c certweaver.yml -e .certweaver/evidence
+```
+
+The verification command requires every listed artifact to be non-empty, binds
+the bundle to the configuration SHA-256, rejects private key or credential
+material, rejects placeholders, and requires a timezone-aware `status: pass`
+attestation with an operator and source for each control. Keep raw kubeconfigs,
+tokens, private hostnames, and secret values outside the committed bundle.
+
+For repeatable hosted acceptance, configure a protected GitHub `staging`
+environment with a self-hosted Linux runner labeled
+`self-hosted`, `linux`, `certweaver-staging`, set its `CERTWEAVER_NODES`
+environment secret to the three SSH targets, and dispatch the
+`Staging Evidence` workflow. The runner must have the staging kubeconfig and
+passwordless read-only commands required by `live-checks.sh`; disruptive
+failover, restore, scan, upgrade, and incident artifacts remain deliberate
+operator steps.
+
 ## Required evidence for 100/100
 
 To claim 100/100 for a specific deployment, attach evidence for every item

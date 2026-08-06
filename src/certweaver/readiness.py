@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -25,6 +26,17 @@ class ScoreArea:
 class EvidenceRequirement:
     control: str
     evidence: str
+    artifacts: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class LiveEvidenceResult:
+    errors: tuple[str, ...]
+    checked_artifacts: tuple[str, ...]
+
+    @property
+    def ok(self) -> bool:
+        return not self.errors
 
 
 SCORE_AREAS: tuple[ScoreArea, ...] = (
@@ -98,49 +110,101 @@ REQUIRED_EVIDENCE: tuple[EvidenceRequirement, ...] = (
         "RKE2 HA install",
         "kubectl node inventory, RKE2 service status from all three nodes, and etcd "
         "member health.",
+        (
+            "rke2-ha/nodes.txt",
+            "rke2-ha/rke2-services.txt",
+            "rke2-ha/etcd-members.txt",
+            "rke2-ha/attestation.json",
+        ),
     ),
     EvidenceRequirement(
         "VIP failover",
         "Active VIP owner before and after stopping HAProxy or Keepalived on the "
         "current owner, plus API success through the VIP.",
+        (
+            "vip-failover/before.txt",
+            "vip-failover/after.txt",
+            "vip-failover/api-check.txt",
+            "vip-failover/attestation.json",
+        ),
     ),
     EvidenceRequirement(
         "Backup and restore",
         "A staging restore from an etcd snapshot using the matching RKE2 token.",
+        ("backup-restore/restore.txt", "backup-restore/attestation.json"),
     ),
     EvidenceRequirement(
         "Certificate issuance",
         "A successful CertificateRequest through the approved issuer path, with "
         "approver-policy enforcing policy.",
+        (
+            "certificate-issuance/certificate-requests.txt",
+            "certificate-issuance/approver-policy.txt",
+            "certificate-issuance/attestation.json",
+        ),
     ),
     EvidenceRequirement(
         "Trust distribution",
         "trust-manager Bundle reconciliation and expected target ConfigMaps or Secrets.",
+        (
+            "trust-distribution/bundles.yaml",
+            "trust-distribution/targets.txt",
+            "trust-distribution/attestation.json",
+        ),
     ),
     EvidenceRequirement(
         "Network controls",
         "Firewalld rich rules and an external port scan from management and "
         "non-management networks.",
+        (
+            "network-controls/firewalld.txt",
+            "network-controls/scan-management.txt",
+            "network-controls/scan-non-management.txt",
+            "network-controls/attestation.json",
+        ),
     ),
     EvidenceRequirement(
         "Host hardening",
         "SELinux enforcing, swap disabled, chrony synchronized, audit logs written, "
         "and CIS/sysctl decision recorded.",
+        (
+            "host-hardening/selinux.txt",
+            "host-hardening/swap.txt",
+            "host-hardening/chrony.txt",
+            "host-hardening/audit.txt",
+            "host-hardening/cis-decision.txt",
+            "host-hardening/attestation.json",
+        ),
     ),
     EvidenceRequirement(
         "Secret handling",
         "RKE2 token, Keepalived auth, DNS credentials, CA keys, unseal material, "
         "and backup keys stored in approved systems.",
+        ("secret-handling/attestation.json",),
     ),
     EvidenceRequirement(
         "Upgrade rehearsal",
         "Staging upgrade of RKE2, Helm charts, and adapters using pinned versions.",
+        ("upgrade-rehearsal/upgrade.txt", "upgrade-rehearsal/attestation.json"),
     ),
     EvidenceRequirement(
         "Incident readiness",
         "Documented CA key compromise, certificate revocation, cluster restore, and "
         "credential rotation procedure.",
+        ("incident-readiness.md", "incident-readiness-attestation.json"),
     ),
+)
+
+
+_SENSITIVE_EVIDENCE_PATTERNS = (
+    re.compile(r"-----BEGIN [^-]*PRIVATE KEY-----", re.IGNORECASE),
+    re.compile(
+        r'(?im)(?:^|\")(?:token|client-key-data|password|passphrase|rke2_token|'
+        r'keepalived_auth|aws_secret_access_key|secret_access_key)\"?\s*[:=]'
+    ),
+)
+_PLACEHOLDER_PATTERN = re.compile(
+    r"(?i)\b(?:TODO|TBD|REPLACE_ME|CHANGE_ME|NOT_COLLECTED|INSERT_.*?_HERE)\b"
 )
 
 
@@ -230,38 +294,191 @@ def requirements_markdown() -> str:
         "",
         "Keep secrets, tokens, kubeconfigs, and private hostnames out of committed reports.",
         "",
-        "| Control | Required evidence | Status |",
-        "|---|---|---|",
+        "Each artifact must be non-empty and each `attestation.json` must record a "
+        "timezone-aware observation, an operator, a source, and `status: pass`.",
+        "",
+        "| Control | Required evidence | Artifacts | Status |",
+        "|---|---|---|---|",
     ]
     for requirement in REQUIRED_EVIDENCE:
-        lines.append(f"| {requirement.control} | {requirement.evidence} | TODO |")
+        artifacts = "<br>".join(f"`{artifact}`" for artifact in requirement.artifacts)
+        lines.append(
+            f"| {requirement.control} | {requirement.evidence} | {artifacts} | TODO |"
+        )
     return "\n".join(lines) + "\n"
 
 
+def _artifact_path(root: Path, relative: str) -> Path | None:
+    candidate = (root / relative).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        return None
+    return candidate
+
+
+def _read_evidence_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _write_text_lf(path: Path, content: str) -> None:
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
+
+
+def _validate_attestation(path: Path, text: str, errors: list[str]) -> None:
+    try:
+        value = json.loads(text)
+    except json.JSONDecodeError:
+        errors.append(f"{path.name}: attestation is not valid JSON")
+        return
+    if not isinstance(value, dict):
+        errors.append(f"{path.name}: attestation must be a JSON object")
+        return
+    if value.get("status") != "pass":
+        errors.append(f"{path.name}: attestation status must be pass")
+    observed_at = value.get("observedAt")
+    if not isinstance(observed_at, str):
+        errors.append(f"{path.name}: attestation observedAt is required")
+    else:
+        try:
+            parsed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+        except ValueError:
+            parsed = None
+        if parsed is None or parsed.tzinfo is None:
+            errors.append(f"{path.name}: observedAt must be timezone-aware ISO-8601")
+    for key in ("operator", "source"):
+        if not isinstance(value.get(key), str) or not value[key].strip():
+            errors.append(f"{path.name}: attestation {key} is required")
+
+
+def verify_live_evidence(
+    destination: str | Path, config: dict[str, Any] | None = None
+) -> LiveEvidenceResult:
+    root = Path(destination).resolve()
+    errors: list[str] = []
+    checked: list[str] = []
+    if not root.is_dir():
+        return LiveEvidenceResult(("evidence directory does not exist",), ())
+
+    manifest_path = root / "manifest.json"
+    if not manifest_path.is_file():
+        errors.append("manifest.json: evidence bundle manifest is required")
+    else:
+        try:
+            manifest = json.loads(_read_evidence_text(manifest_path))
+        except json.JSONDecodeError:
+            manifest = None
+            errors.append("manifest.json: evidence bundle manifest is not valid JSON")
+        if isinstance(manifest, dict):
+            score, maximum = repo_score()
+            if manifest.get("repoScore") != score or manifest.get("repoScoreMaximum") != maximum:
+                errors.append("manifest.json: repository score does not match this checkout")
+            if config is not None and manifest.get("configSha256") != config_sha256(config):
+                errors.append("manifest.json: config hash does not match the supplied config")
+            validation = manifest.get("validation", {})
+            if isinstance(validation, dict) and validation.get("errors"):
+                errors.append("manifest.json: configuration validation contains errors")
+            elif not isinstance(validation, dict):
+                errors.append("manifest.json: validation must be a JSON object")
+
+    for requirement in REQUIRED_EVIDENCE:
+        for relative in requirement.artifacts:
+            path = _artifact_path(root, relative)
+            if path is None:
+                errors.append(f"{relative}: artifact path escapes evidence directory")
+                continue
+            if not path.is_file():
+                errors.append(f"{relative}: required evidence artifact is missing")
+                continue
+            text = _read_evidence_text(path)
+            checked.append(relative)
+            if not text.strip():
+                errors.append(f"{relative}: evidence artifact is empty")
+                continue
+            if any(pattern.search(text) for pattern in _SENSITIVE_EVIDENCE_PATTERNS):
+                errors.append(f"{relative}: sensitive material must be redacted")
+            if _PLACEHOLDER_PATTERN.search(text):
+                errors.append(f"{relative}: placeholder evidence is not accepted")
+            if path.name.endswith("attestation.json"):
+                _validate_attestation(path, text, errors)
+
+    return LiveEvidenceResult(tuple(errors), tuple(checked))
+
+
 def live_checks_script() -> str:
-    return """#!/usr/bin/env bash
+    return r"""#!/usr/bin/env bash
 set -euo pipefail
 
+umask 077
 KUBECONFIG="${KUBECONFIG:-/etc/rancher/rke2/rke2.yaml}"
 OUT="${1:-certweaver-live-evidence}"
 mkdir -p "$OUT"
 K=(kubectl --kubeconfig "$KUBECONFIG")
 
-"${K[@]}" get nodes -o wide > "$OUT/nodes.txt"
-"${K[@]}" get pods --all-namespaces -o wide > "$OUT/pods.txt"
-"${K[@]}" -n cert-manager get deploy,pod > "$OUT/cert-manager.txt"
-"${K[@]}" get certificaterequests.cert-manager.io \
-  --all-namespaces > "$OUT/certificate-requests.txt" || true
-"${K[@]}" get certificaterequestpolicies.policy.cert-manager.io \
-  --all-namespaces > "$OUT/approver-policy.txt" || true
-"${K[@]}" get bundles.trust.cert-manager.io \
-  --all-namespaces -o yaml > "$OUT/trust-bundles.yaml" || true
-"${K[@]}" get certificates.cert-manager.io \
-  --all-namespaces > "$OUT/certificates.txt" || true
+mkdir -p "$OUT/rke2-ha" "$OUT/certificate-issuance" "$OUT/trust-distribution"
 
-cat > "$OUT/manual-node-evidence.txt" <<'NOTE'
-Collect node-local service, SELinux, firewalld, and snapshot evidence separately
-from each RKE2 node.
+"${K[@]}" get nodes -o wide > "$OUT/rke2-ha/nodes.txt"
+"${K[@]}" get --raw=/readyz?verbose > "$OUT/rke2-ha/api-readyz.txt"
+"${K[@]}" get pods --all-namespaces -o wide > "$OUT/rke2-ha/pods.txt"
+"${K[@]}" -n cert-manager get deploy,pod > "$OUT/certificate-issuance/cert-manager.txt"
+"${K[@]}" get certificaterequests.cert-manager.io \
+  --all-namespaces > "$OUT/certificate-issuance/certificate-requests.txt"
+"${K[@]}" get certificaterequestpolicies.policy.cert-manager.io \
+  --all-namespaces > "$OUT/certificate-issuance/approver-policy.txt"
+"${K[@]}" get bundles.trust.cert-manager.io \
+  --all-namespaces -o yaml > "$OUT/trust-distribution/bundles.yaml"
+"${K[@]}" get certificates.cert-manager.io \
+  --all-namespaces > "$OUT/certificate-issuance/certificates.txt"
+
+: "${CERTWEAVER_NODES:?Set CERTWEAVER_NODES to three comma-separated SSH targets}"
+IFS=',' read -r -a NODES <<< "$CERTWEAVER_NODES"
+if [[ "${#NODES[@]}" -ne 3 ]]; then
+  echo "CERTWEAVER_NODES must contain exactly three SSH targets" >&2
+  exit 2
+fi
+mkdir -p "$OUT/host-hardening" "$OUT/network-controls"
+: > "$OUT/rke2-ha/rke2-services.txt"
+: > "$OUT/rke2-ha/etcd-members.txt"
+: > "$OUT/host-hardening/selinux.txt"
+: > "$OUT/host-hardening/swap.txt"
+: > "$OUT/host-hardening/chrony.txt"
+: > "$OUT/host-hardening/audit.txt"
+: > "$OUT/network-controls/firewalld.txt"
+for index in "${!NODES[@]}"; do
+  node="${NODES[$index]}"
+  label="node-$((index + 1))"
+  printf '%s\n' "$label" >> "$OUT/rke2-ha/rke2-services.txt"
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
+    "sudo -n systemctl is-active rke2-server; sudo -n systemctl is-enabled rke2-server" \
+    >> "$OUT/rke2-ha/rke2-services.txt"
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
+    "sudo -n getenforce" >> "$OUT/host-hardening/selinux.txt"
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
+    "sudo -n swapon --show" >> "$OUT/host-hardening/swap.txt"
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
+    "sudo -n chronyc tracking" >> "$OUT/host-hardening/chrony.txt"
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
+    "sudo -n auditctl -s" >> "$OUT/host-hardening/audit.txt"
+  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
+    "sudo -n firewall-cmd --list-all" >> "$OUT/network-controls/firewalld.txt"
+done
+
+ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "${NODES[0]}" \
+  "sudo -n env ETCDCTL_API=3 /var/lib/rancher/rke2/bin/etcdctl \
+    --endpoints=https://127.0.0.1:2379 \
+    --cacert=/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt \
+    --cert=/var/lib/rancher/rke2/server/tls/etcd/server-client.crt \
+    --key=/var/lib/rancher/rke2/server/tls/etcd/server-client.key \
+    endpoint health --cluster" > "$OUT/rke2-ha/etcd-members.txt"
+
+cat > "$OUT/manual-evidence.txt" <<'NOTE'
+Collect and redact the remaining disruptive or externally sourced evidence:
+VIP owner before/after failover and API checks, snapshot restore, external scans
+from management and non-management networks, trust-manager target objects,
+approved secret-storage attestation, upgrade rehearsal, and incident readiness.
+Create the exact artifacts listed by required-live-evidence.md, with a
+timezone-aware attestation.json containing status=pass, operator, and source.
 NOTE
 """
 
@@ -309,7 +526,7 @@ def write_evidence_bundle(config: dict[str, Any], destination: str | Path) -> li
     written: list[Path] = []
     for relative, content in files.items():
         path = target / relative
-        path.write_text(content, encoding="utf-8")
+        _write_text_lf(path, content)
         if path.name.endswith(".sh"):
             path.chmod(0o755)
         written.append(path)

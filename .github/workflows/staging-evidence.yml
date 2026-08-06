@@ -1,0 +1,41 @@
+name: Staging Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: Configuration file for the deployed staging profile
+        required: true
+        default: config/certweaver.example.yml
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  live-evidence:
+    name: Staging / live evidence
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, certweaver-staging]
+    environment:
+      name: staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -c constraints/ci.txt -e .
+      - run: python scripts/verify_supply_chain.py
+      - run: >-
+          certweaver evidence -c "${{ inputs.config }}"
+          -o "$RUNNER_TEMP/certweaver-evidence"
+      - run: >-
+          bash "$RUNNER_TEMP/certweaver-evidence/live-checks.sh"
+          "$RUNNER_TEMP/certweaver-evidence"
+        env:
+          CERTWEAVER_NODES: ${{ secrets.CERTWEAVER_NODES }}
+          KUBECONFIG: /etc/rancher/rke2/rke2.yaml
+      - run: >-
+          certweaver evidence-verify -c "${{ inputs.config }}"
+          -e "$RUNNER_TEMP/certweaver-evidence"

@@ -127,6 +127,9 @@ certweaver validate -c certweaver.yml
 certweaver matrix
 certweaver score
 certweaver evidence -c certweaver.yml -o .certweaver/evidence
+# On staging, after collecting and redacting all required artifacts:
+certweaver evidence-verify -c certweaver.yml -e .certweaver/evidence
+certweaver score -c certweaver.yml -e .certweaver/evidence
 certweaver plan -c certweaver.yml
 certweaver doctor -c certweaver.yml
 certweaver render-inventory -c certweaver.yml

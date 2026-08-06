@@ -6,9 +6,26 @@ from types import SimpleNamespace
 import pytest
 
 from certweaver import cli
+from certweaver.config import load_config
+from certweaver.readiness import REQUIRED_EVIDENCE, write_evidence_bundle
 from certweaver.registry import project_root
 
 CONFIG = project_root() / "config" / "certweaver.example.yml"
+
+
+def complete_live_evidence(destination) -> None:
+    attestation = (
+        '{"status":"pass","observedAt":"2026-08-06T12:00:00Z",'
+        '"operator":"test","source":"cli-test"}'
+    )
+    for requirement in REQUIRED_EVIDENCE:
+        for relative in requirement.artifacts:
+            path = destination / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if path.name.endswith("attestation.json"):
+                path.write_text(attestation, encoding="utf-8")
+            else:
+                path.write_text("Observed pass evidence\n", encoding="utf-8")
 
 
 def invoke_cli(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> int:
@@ -48,6 +65,39 @@ def test_cli_renders_inventory_and_evidence(
     assert invoke_cli(monkeypatch, ["evidence", "-c", str(CONFIG), "-o", str(evidence)]) == 0
     assert (evidence / "manifest.json").exists()
     assert "Evidence bundle written" in capsys.readouterr().out
+
+
+def test_cli_verifies_live_evidence_and_reports_100(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path
+) -> None:
+    evidence = tmp_path / "evidence"
+    write_evidence_bundle(load_config(CONFIG), evidence)
+    complete_live_evidence(evidence)
+
+    assert invoke_cli(
+        monkeypatch,
+        ["evidence-verify", "-c", str(CONFIG), "-e", str(evidence)],
+    ) == 0
+    assert "100/100" in capsys.readouterr().out
+
+    assert invoke_cli(
+        monkeypatch,
+        ["score", "-c", str(CONFIG), "-e", str(evidence)],
+    ) == 0
+    assert "Validated deployment production maturity" in capsys.readouterr().out
+
+
+def test_cli_rejects_incomplete_live_evidence(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path
+) -> None:
+    evidence = tmp_path / "evidence"
+    write_evidence_bundle(load_config(CONFIG), evidence)
+
+    assert invoke_cli(
+        monkeypatch,
+        ["evidence-verify", "-c", str(CONFIG), "-e", str(evidence)],
+    ) == 2
+    assert "live evidence validation failed" in capsys.readouterr().err
 
 
 def test_cli_deploy_builds_expected_ansible_command(
