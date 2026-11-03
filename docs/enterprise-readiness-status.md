@@ -1,5 +1,36 @@
 # Enterprise readiness execution status — 2026-11-03
 
+**Draft publication checkpoint, 2026-11-03:** The user approved publishing the
+reviewed candidate to [draft PR #7](https://github.com/Yunushan/certweaver/pull/7)
+and starting hosted CI. Candidate `6244f0f` was published, and its first hosted
+run exposed a runner/root workspace-ownership failure and CodeQL findings in
+verification fixtures. Follow-up `703b427` creates the private runner-owned
+workspace before privileged checks, makes fixture TLS minimums explicit and
+uses named text templates for Helm arguments. Its CodeQL, Security/Trivy and
+Python 3.11–3.14 package checks passed at this checkpoint; both full hosted test
+jobs were still running. One remaining nonblocking unused-assignment warning
+was then removed. These statements are dated observations of those exact
+commits; the current PR head must pass its own required checks.
+
+Fresh local verification of `703b427` passed all **1,128 tests** separately on
+Linux Python 3.11.18/Core 2.19.14 and Python 3.14.4/Core 2.21.5. Each profile
+also passed production Ansible lint, seven playbook syntax checks, Ruff, YAML,
+workflow contracts and coverage gates. Windows passed **1,114 tests**, with
+fourteen platform-specific skips. A real cross-user regression reproduced the
+old permission failure and verified the runner-owned mode-0700 parent after a
+privileged child, preserving that child's root ownership. Local receipts are in
+`.certweaver/pr-publication-20261103/attempt-1/ci-fix-1/`.
+
+CodeQL and Security workflows are active. Authenticated read-only observation
+confirmed main requires all five configured checks, an approving review,
+code-owner review, last-push approval, signed commits, linear history and
+conversation resolution, with administrator enforcement. The local draft
+commits are unsigned. Maintainers must establish an eligible independent review
+and approved signing path before any protected merge. No repository policy was
+weakened, and no merge, tag, deployment or production approval was performed.
+The enterprise assessment remains unassessed with zero accepted assurance
+credit and twelve unknown category gates.
+
 **Current verified checkpoint:** The user selected the new 100-control
 enterprise framework as this goal's acceptance basis. The
 [release gate report](release-gates.md) records the artifact qualification suite,
@@ -946,10 +977,12 @@ Existing clusters still require reviewed sequential minor upgrades, the
 cert-manager RBAC/metrics migration review, and a staged ingress/CRD ownership
 migration with recovery evidence before applying these settings.
 
-The working tree is uncommitted. No exact-candidate remote GitHub/GitLab CI,
-Gitleaks, Trivy or CodeQL result, published SBOM, signed provenance verification,
-final immutable release or authenticated production decision has been proved
-by this local run. The current frozen-source audit used a fresh database and reconciled all
+The root working tree remains uncommitted relative to its original main base;
+the isolated review candidate has been committed and published to draft PR #7.
+The dated checkpoint above distinguishes actual hosted results from local
+proof. Actual GitLab candidate execution, a published SBOM, approved signed
+provenance verification, a final immutable release and an authenticated
+production decision remain unproved. The frozen-source local audit used a fresh database and reconciled all
 declared lock environments; it is not a security disposition for an approved
 production release. Local success must not be presented as the missing hosted
 results or as qualification of every advertised adapter/platform.

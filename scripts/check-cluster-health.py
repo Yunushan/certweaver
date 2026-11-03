@@ -707,7 +707,6 @@ def verify(root, output, native, supplied):
         variables.update(certweaver_mode="rke2-ha")
         variables.pop("certweaver_cluster_health_nodes")
         variables.pop("certweaver_cluster_health_profiles")
-        server_tasks = yaml.safe_load((root / "roles/rke2_server/tasks/main.yml").read_text())
         fleet_cases = [
             "upgrade-healthy",
             "upgrade-preflight-failure",
