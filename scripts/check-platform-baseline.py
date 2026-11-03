@@ -13,7 +13,7 @@ import tempfile
 from pathlib import Path
 
 import yaml
-from jinja2 import Environment, StrictUndefined
+from jinja2 import DictLoader, Environment, StrictUndefined, select_autoescape
 
 from certweaver.config import load_config, validate_config
 from certweaver.render import inventory_from_config
@@ -30,12 +30,20 @@ def digest(path):
 
 def template_arguments(task, variables, root):
     """Translate only the deployed chart flags; reject an unhandled change."""
-    environment = Environment(undefined=StrictUndefined)
+    templates = {
+        f"helm-argv-{index}.txt": str(value)
+        for index, value in enumerate(task["ansible.builtin.command"]["argv"])
+    }
+    environment = Environment(
+        loader=DictLoader(templates),
+        undefined=StrictUndefined,
+        autoescape=select_autoescape(
+            disabled_extensions=("txt",), default_for_string=True, default=True
+        ),
+    )
     environment.filters["bool"] = bool
-    argv = [
-        environment.from_string(str(v)).render(**variables)
-        for v in task["ansible.builtin.command"]["argv"]
-    ]
+    # Helm argv is explicitly text; other template contexts retain escaping.
+    argv = [environment.get_template(name).render(**variables) for name in templates]
     require(argv[1:3] == ["upgrade", "--install"], "Expected a managed chart installation")
     args = ["template", argv[3], argv[4]]
     index = 5

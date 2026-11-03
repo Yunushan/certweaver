@@ -405,6 +405,7 @@ def verify(root, output, native, supplied):
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), API)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(native / "server.crt", native / "server.key")
     server.socket = context.wrap_socket(server.socket, server_side=True)
     worker = threading.Thread(target=server.serve_forever, daemon=True)
@@ -707,7 +708,6 @@ def verify(root, output, native, supplied):
         variables.pop("certweaver_cluster_health_nodes")
         variables.pop("certweaver_cluster_health_profiles")
         server_tasks = yaml.safe_load((root / "roles/rke2_server/tasks/main.yml").read_text())
-        early_gate, final_gate = copy.deepcopy(server_tasks[1]), copy.deepcopy(server_tasks[-1])
         fleet_cases = [
             "upgrade-healthy",
             "upgrade-preflight-failure",

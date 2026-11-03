@@ -20,6 +20,26 @@ def load(path: Path) -> dict:
 def github_required_checks_contract(ci: dict, security: dict, codeql: dict) -> list[str]:
     """Keep the names observed in main protection, with a blocking matrix aggregate."""
     errors = []
+    steps = ci.get("jobs", {}).get("test", {}).get("steps", [])
+    preparation = [
+        i
+        for i, step in enumerate(steps)
+        if step.get("name") == "Prepare private verification workspace"
+    ]
+    privileged = [i for i, step in enumerate(steps) if step.get("run", "").startswith("sudo ")]
+    if (
+        len(preparation) != 1
+        or steps[preparation[0]]
+        != {
+            "name": "Prepare private verification workspace",
+            "run": "install -d -m 0700 .certweaver",
+        }
+        or not privileged
+        or preparation[0] >= min(privileged)
+    ):
+        errors.append(
+            "Runner-owned private verification root must precede every privileged fixture"
+        )
     gate = ci.get("jobs", {}).get("required-ci", {})
     condition = "needs.test.result != 'success' || needs['installed-package'].result != 'success'"
     if (
@@ -162,14 +182,14 @@ def gitlab_release_contract(root: Path, document: dict) -> list[str]:
         'python scripts/check-package-reproducibility.py --commit "$CI_COMMIT_SHA"',
         "python scripts/check-wheel.py dist/*.whl",
         "git archive --format=tar.gz --prefix=certweaver-${CI_COMMIT_TAG}/ "
-        "-o dist/certweaver-${CI_COMMIT_TAG}.tar.gz HEAD",
+        + "-o dist/certweaver-${CI_COMMIT_TAG}.tar.gz HEAD",
         "git archive --format=zip --prefix=certweaver-${CI_COMMIT_TAG}/ "
-        "-o dist/certweaver-${CI_COMMIT_TAG}.zip HEAD",
+        + "-o dist/certweaver-${CI_COMMIT_TAG}.zip HEAD",
         'python scripts/qualify-release.py dist --tag "$CI_COMMIT_TAG" --commit "$CI_COMMIT_SHA"',
         'python scripts/release-evidence.py dist --tag "$CI_COMMIT_TAG" --commit "$CI_COMMIT_SHA"',
         "python scripts/install-ci-tool.py cosign",
         "python scripts/gitlab-release.py sign --cosign .certweaver/tools/cosign "
-        "--output .certweaver/gitlab-signing-verification.json",
+        + "--output .certweaver/gitlab-signing-verification.json",
     ]
     if signer.get("script") != expected_script:
         errors.append(

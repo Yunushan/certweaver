@@ -357,7 +357,7 @@ def main(argv=None):
                 with (args.output_dir / "diagnostics.json").open("x", encoding="utf-8") as stream:
                     json.dump(diagnostic, stream, indent=2)
             except OSError:
-                pass
+                pass  # Failure to retain diagnostics never changes the failed gate result.
         print("ERROR: SAST failed at stage " + stage)
         return 1
 

@@ -196,7 +196,7 @@ class ControlPlane:
                 if status == 200:
                     return
             except (OSError, urllib.error.URLError):
-                pass
+                pass  # The owned process may not yet be listening; the deadline remains enforced.
             require(time.monotonic() < deadline, "Owned API process readiness timed out")
             time.sleep(0.2)
 
@@ -417,7 +417,6 @@ def verify(root, output, native, api_archive=None, etcd_archive=None, supplied=N
         directory = native / "cases"
         directory.mkdir(mode=0o700)
         source = directory / "source.env"
-        target = "probe"
         for case in [
             "create",
             "repeat",

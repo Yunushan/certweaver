@@ -184,6 +184,27 @@ def test_release_handoff_rejects_invalid_artifacts(tmp_path, change):
     assert release_tools["check_release"](directory, tag=tag, commit=commit, root=project_root())
 
 
+@pytest.mark.parametrize("change", ["missing", "late", "public", "conditional"])
+def test_runner_owned_workspace_cannot_follow_or_weaken_privileged_checks(change):
+    ci = workflow_tools["load"](project_root() / ".github/workflows/ci.yml")
+    security = workflow_tools["load"](project_root() / ".github/workflows/security.yml")
+    codeql = workflow_tools["load"](project_root() / ".github/workflows/codeql.yml")
+    steps = ci["jobs"]["test"]["steps"]
+    preparation = next(
+        s for s in steps if s.get("name") == "Prepare private verification workspace"
+    )
+    if change == "missing":
+        steps.remove(preparation)
+    elif change == "late":
+        steps.remove(preparation)
+        steps.append(preparation)
+    elif change == "public":
+        preparation["run"] = "install -d -m 0777 .certweaver"
+    else:
+        preparation["if"] = "false"
+    assert workflow_tools["github_required_checks_contract"](ci, security, codeql)
+
+
 def test_release_workflows_obey_dependency_and_privilege_contracts():
     assert workflow_tools["check_workflows"](project_root()) == []
 

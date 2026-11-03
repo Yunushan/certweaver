@@ -133,7 +133,7 @@ def verify(root: Path, output: Path, temporary: Path) -> dict:
                             "that": [
                                 "fixture_service_state == fixture_expected_state",
                                 "fixture_image_line in "
-                                "(fixture_unit.content | b64decode).splitlines()",
+                                + "(fixture_unit.content | b64decode).splitlines()",
                             ]
                         },
                         "vars": {

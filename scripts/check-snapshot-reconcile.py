@@ -70,7 +70,7 @@ class SecretAPI:
 
             def do_GET(self):
                 if not self.authorized():
-                    return
+                    return None
                 path = urlsplit(self.path).path
                 parent.events.append({"method": "GET", "path": path})
                 if path == "/api":
@@ -149,7 +149,7 @@ class SecretAPI:
 
             def do_PATCH(self):
                 if not self.authorized():
-                    return
+                    return None
                 parsed = urlsplit(self.path)
                 dry = "dryRun" in parse_qs(parsed.query)
                 name = parsed.path.rsplit("/", 1)[1]
@@ -182,10 +182,11 @@ class SecretAPI:
                 value["metadata"] = metadata
                 if not dry:
                     parent.live[name] = copy.deepcopy(value)
-                self.send(200, value)
+                return self.send(200, value)
 
         self.server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.load_cert_chain(native / "server.crt", native / "server.key")
         self.server.socket = context.wrap_socket(self.server.socket, server_side=True)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)

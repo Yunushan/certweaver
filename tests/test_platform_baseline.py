@@ -4,12 +4,42 @@ import runpy
 
 import pytest
 import yaml
+from jinja2 import UndefinedError
 
 from certweaver.config import load_config
 from certweaver.registry import project_root
 from certweaver.render import inventory_from_config
 
 tools = runpy.run_path(str(project_root() / "scripts/check-platform-baseline.py"))
+
+
+@pytest.mark.parametrize("value", ["a&b<node>\"quoted'", "café/path?x=1&y=2", "{{ literal }}"])
+def test_helm_argument_text_context_preserves_values_without_html_encoding(value):
+    task = {
+        "ansible.builtin.command": {
+            "argv": [
+                "helm",
+                "upgrade",
+                "--install",
+                "release",
+                "chart.tgz",
+                "--set",
+                "value={{ raw }}",
+            ]
+        }
+    }
+    result = tools["template_arguments"](task, {"raw": value}, project_root())
+    assert result == ["template", "release", "chart.tgz", "--set", "value=" + value]
+
+
+def test_helm_argument_translation_still_rejects_missing_variables():
+    task = {
+        "ansible.builtin.command": {
+            "argv": ["helm", "upgrade", "--install", "release", "{{ absent }}"]
+        }
+    }
+    with pytest.raises(UndefinedError):
+        tools["template_arguments"](task, {}, project_root())
 
 
 def test_baseline_translates_actual_deployment_overrides_and_private_values_paths():
