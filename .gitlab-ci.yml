@@ -1,40 +1,313 @@
-stages: [test, security, package]
+stages: [test, security, package, sign, verify]
+
+variables:
+  PYTHON_IMAGE: "python:3.14-slim@sha256:930e1abba7c4e8f96ed93e8012c35d174d7732752731bbd5e8e757d7ec6f3966"
 
 default:
-  image: python:3.11-slim
+  image: ${PYTHON_IMAGE}
   before_script:
-    - pip install -c constraints/ci.txt -e '.[dev]'
+    - apt-get update
+    - apt-get install -y --no-install-recommends git
+    - python scripts/install-python-deps.py dev --editable
     - ansible-galaxy collection install -r collections/requirements.yml
 
 lint-test:
   stage: test
+  parallel:
+    matrix:
+      - PYTHON_IMAGE:
+          - "python:3.11-slim@sha256:db20d8506e2f15b6db39b40b6015ca46bae855dec6dd326d462cfe79ae972893"
+          - "python:3.14-slim@sha256:930e1abba7c4e8f96ed93e8012c35d174d7732752731bbd5e8e757d7ec6f3966"
   script:
-    - ruff check src tests
-    - python scripts/verify_supply_chain.py
+    - >-
+      ruff check src tests scripts/*.py ci/*.py
+      roles/pki_adapter/files/verify-git-checkout roles/cluster_addons/files/protect-kubeconfig setup.py
+    - python scripts/check-release-workflows.py
+    - python scripts/check-adapter-acquisition.py
     - yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
     - ansible-lint playbooks roles
+    - python scripts/check-cluster-versions.py --output-dir .certweaver/cluster-versions-check
+    - python scripts/check-cluster-health.py --output-dir .certweaver/cluster-health-check
+    - python scripts/check-managed-strategy.py --output-dir .certweaver/managed-strategy-check
+    - python scripts/check-snapshot-config.py --output-dir .certweaver/snapshot-config-check
+    - python scripts/check-snapshot-reconcile.py --output-dir .certweaver/snapshot-reconcile-check
+    - python scripts/check-snapshot-api.py --output-dir .certweaver/snapshot-api-check
+    - python scripts/check-kubeconfig-export.py --output-dir .certweaver/kubeconfig-export-check
+    - python scripts/install-ci-tool.py helm
+    - python scripts/check-platform-baseline.py --helm .certweaver/tools/helm --output-dir .certweaver/platform-baseline-check
+    - python scripts/check-chart-acquisition.py --helm .certweaver/tools/helm --output-dir .certweaver/chart-acquisition-check
+    - python scripts/check-git-acquisition.py --output-dir .certweaver/git-acquisition-check
+    - python scripts/check-adapter-download.py --output-dir .certweaver/adapter-download-check
+    - python scripts/check-container-configuration.py --output-dir .certweaver/container-configuration-check
     - pytest --cov=certweaver --cov-report=term-missing
-    - bash scripts/audit-dependencies.sh
+    - python scripts/check-coverage.py
     - ./scripts/validate-all.sh
     - certweaver matrix
+    - python scripts/build-package.py --commit "$CI_COMMIT_SHA"
+    - python scripts/check-package-reproducibility.py --commit "$CI_COMMIT_SHA"
+    - python scripts/check-wheel.py dist/*.whl
 
 secret-scan:
   stage: security
   image:
-    name: zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+    name: >-
+      ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
     entrypoint: [""]
   before_script: []
+  variables:
+    GIT_DEPTH: "0"
   script:
-    - gitleaks detect --source . --no-git --verbose
+    - gitleaks git --log-opts=--all --redact=100 .
+    - gitleaks dir --redact=100 .
+
+python-yaml-sast:
+  stage: security
+  timeout: 20 minutes
+  image:
+    name: >-
+      registry.gitlab.com/security-products/semgrep:6.30.0@sha256:c412f7fa397fb934a2862c7156c88384c202e913873528ef6a2785786fd57e44
+    entrypoint: [""]
+  variables:
+    GIT_STRATEGY: clone
+    GIT_DEPTH: "0"
+  dependencies: []
+  cache: []
+  before_script: []
+  script:
+    - python scripts/check-sast.py --commit "$CI_COMMIT_SHA" --output-dir .certweaver/sast
+  artifacts:
+    access: maintainer
+    when: always
+    expire_in: 7 days
+    reports:
+      sast: .certweaver/sast/gl-sast-report.json
+    paths:
+      - .certweaver/sast/gl-sast-report.json
+      - .certweaver/sast/result.json
+      - .certweaver/sast/diagnostics.json
+
+source-scan:
+  stage: security
+  variables:
+    GIT_STRATEGY: clone
+  dependencies: []
+  cache: []
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git
+    - python scripts/install-python-deps.py build --project
+  script:
+    - python scripts/check-source-security.py --commit "$CI_COMMIT_SHA" --output-dir .certweaver/source-security
+  artifacts:
+    access: maintainer
+    when: always
+    expire_in: 7 days
+    paths:
+      - .certweaver/source-security/source-security-result.json
+      - .certweaver/source-security/diagnostics.json
 
 package:
   stage: package
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git
+    - python scripts/install-python-deps.py build --project
   rules:
     - if: $CI_COMMIT_TAG
   script:
-    - mkdir -p dist
+    - python scripts/check-release.py --tag "$CI_COMMIT_TAG" --identity-only
+    - python scripts/build-package.py --commit "$CI_COMMIT_SHA"
+    - python scripts/check-package-reproducibility.py --commit "$CI_COMMIT_SHA"
+    - python scripts/check-wheel.py dist/*.whl
     - git archive --format=tar.gz --prefix=certweaver-${CI_COMMIT_TAG}/ -o dist/certweaver-${CI_COMMIT_TAG}.tar.gz HEAD
     - git archive --format=zip --prefix=certweaver-${CI_COMMIT_TAG}/ -o dist/certweaver-${CI_COMMIT_TAG}.zip HEAD
-    - cd dist && sha256sum * > SHA256SUMS
+    - python scripts/qualify-release.py dist --tag "$CI_COMMIT_TAG" --commit "$CI_COMMIT_SHA"
+    - python scripts/release-evidence.py dist --tag "$CI_COMMIT_TAG" --commit "$CI_COMMIT_SHA"
   artifacts:
-    paths: [dist/]
+    access: maintainer
+    when: on_success
+    expire_in: 7 days
+    paths: [dist/, release-evidence/qualification.json]
+
+sign-release:
+  stage: sign
+  timeout: 30 minutes
+  interruptible: false
+  resource_group: release-signing
+  environment:
+    name: release
+  variables:
+    GIT_STRATEGY: clone
+  dependencies: []
+  cache: []
+  id_tokens:
+    SIGSTORE_ID_TOKEN:
+      aud: sigstore
+  rules:
+    - if: >-
+        $CI_SERVER_URL == "https://gitlab.com" && $CI_PIPELINE_SOURCE == "push" &&
+        $CI_COMMIT_REF_PROTECTED == "true" && $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git
+    - python scripts/install-python-deps.py build --project
+  script:
+    - python scripts/gitlab-release.py context
+    - python scripts/build-package.py --commit "$CI_COMMIT_SHA"
+    - python scripts/check-package-reproducibility.py --commit "$CI_COMMIT_SHA"
+    - python scripts/check-wheel.py dist/*.whl
+    - git archive --format=tar.gz --prefix=certweaver-${CI_COMMIT_TAG}/ -o dist/certweaver-${CI_COMMIT_TAG}.tar.gz HEAD
+    - git archive --format=zip --prefix=certweaver-${CI_COMMIT_TAG}/ -o dist/certweaver-${CI_COMMIT_TAG}.zip HEAD
+    - python scripts/qualify-release.py dist --tag "$CI_COMMIT_TAG" --commit "$CI_COMMIT_SHA"
+    - python scripts/release-evidence.py dist --tag "$CI_COMMIT_TAG" --commit "$CI_COMMIT_SHA"
+    - python scripts/install-ci-tool.py cosign
+    - python scripts/gitlab-release.py sign --cosign .certweaver/tools/cosign --output .certweaver/gitlab-signing-verification.json
+  artifacts:
+    access: maintainer
+    when: on_success
+    expire_in: 7 days
+    paths:
+      - dist/
+      - release-evidence/qualification.json
+      - release-evidence/gitlab-provenance.json
+      - release-evidence/gitlab-provenance.sigstore.json
+
+verify-release:
+  stage: verify
+  timeout: 20 minutes
+  variables:
+    GIT_STRATEGY: empty
+  cache: []
+  needs:
+    - job: sign-release
+      artifacts: true
+  rules:
+    - if: >-
+        $CI_SERVER_URL == "https://gitlab.com" && $CI_PIPELINE_SOURCE == "push" &&
+        $CI_COMMIT_REF_PROTECTED == "true" && $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git
+  script:
+    - |
+      python -I - <<'CERTWEAVER_BOOTSTRAP'
+      """Inline in GitLab CI: downloaded artifacts are data, never verification code.
+
+      The workflow guard compares this canonical source with the exact inline block.
+      GitLab executes that block from its compiled pipeline, with GIT_STRATEGY=empty.
+      """
+
+      import os
+      import re
+      import subprocess
+      import sys
+      import tempfile
+      from pathlib import Path
+      from urllib.parse import urlparse
+
+
+      def main():
+          commit = os.environ.get("CI_COMMIT_SHA", "")
+          project = os.environ.get("CI_PROJECT_PATH", "")
+          source_url = os.environ.get("CI_REPOSITORY_URL", "")
+          parsed = urlparse(source_url)
+          if (
+              not re.fullmatch(r"[a-f0-9]{40}|[a-f0-9]{64}", commit)
+              or os.environ.get("CI_SERVER_URL") != "https://gitlab.com"
+              or parsed.scheme != "https"
+              or parsed.hostname != "gitlab.com"
+              or parsed.port
+              or parsed.path != "/" + project + ".git"
+              or parsed.query
+              or parsed.fragment
+          ):
+              raise ValueError("Invalid trusted consumer source context")
+          candidate = Path(os.environ["CI_PROJECT_DIR"]).absolute()
+          if candidate.is_symlink() or not candidate.is_dir():
+              raise ValueError("Invalid candidate data directory")
+          with tempfile.TemporaryDirectory(prefix="certweaver-gitlab-consumer-", dir="/tmp") as temporary:
+              work = Path(temporary)
+              home, source, environment = work / "home", work / "source", work / "environment"
+              home.mkdir(mode=0o700)
+              clean = {
+                  "PATH": "/usr/local/bin:/usr/bin:/bin",
+                  "HOME": str(home),
+                  "GIT_CONFIG_NOSYSTEM": "1",
+                  "GIT_CONFIG_SYSTEM": "/dev/null",
+                  "GIT_CONFIG_GLOBAL": "/dev/null",
+                  "GIT_TERMINAL_PROMPT": "0",
+                  "PIP_CONFIG_FILE": "/dev/null",
+                  "PYTHONNOUSERSITE": "1",
+              }
+
+              def run(arguments, cwd=work):
+                  result = subprocess.run(
+                      arguments, cwd=cwd, env=clean, capture_output=True, timeout=600, check=False
+                  )
+                  if result.returncode:
+                      # Clone arguments can contain the ephemeral job token. Never
+                      # forward commands, stderr or arbitrary data to the CI trace.
+                      raise ValueError("Trusted consumer bootstrap stage failed")
+
+              run(
+                  [
+                      "git",
+                      "-c",
+                      "core.hooksPath=/dev/null",
+                      "clone",
+                      "--no-checkout",
+                      "--no-recurse-submodules",
+                      source_url,
+                      str(source),
+                  ]
+              )
+              run(["git", "-c", "core.hooksPath=/dev/null", "checkout", "--detach", commit], source)
+              run([sys.executable, "-I", "-m", "venv", str(environment)])
+              python = str(environment / "bin/python")
+              run(
+                  [python, "-I", str(source / "scripts/install-python-deps.py"), "build", "--project"],
+                  source,
+              )
+              run([python, "-I", str(source / "scripts/install-ci-tool.py"), "cosign"], source)
+              output = candidate / "release-intake"
+              output.mkdir(mode=0o700, exist_ok=False)
+              run(
+                  [
+                      python,
+                      "-I",
+                      str(source / "scripts/gitlab-release.py"),
+                      "verify",
+                      str(candidate),
+                      "--cosign",
+                      str(source / ".certweaver/tools/cosign"),
+                      "--project-url",
+                      os.environ["CI_PROJECT_URL"],
+                      "--project-id",
+                      os.environ["CI_PROJECT_ID"],
+                      "--tag",
+                      os.environ["CI_COMMIT_TAG"],
+                      "--commit",
+                      commit,
+                      "--output",
+                      str(output / "verified.json"),
+                  ],
+                  source,
+              )
+          print(
+              "Independent consumer process verified GitLab release intake; "
+              "production approval not inferred"
+          )
+
+
+      if __name__ == "__main__":
+          try:
+              main()
+          except (OSError, ValueError, KeyError, TypeError, subprocess.SubprocessError) as exc:
+              print("ERROR: Trusted GitLab consumer bootstrap failed (" + type(exc).__name__ + ")")
+              raise SystemExit(1) from exc
+      CERTWEAVER_BOOTSTRAP
+  artifacts:
+    access: maintainer
+    when: on_success
+    expire_in: 7 days
+    paths: [release-intake/verified.json]

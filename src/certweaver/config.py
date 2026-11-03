@@ -12,6 +12,8 @@ from jsonschema import Draft202012Validator
 
 from .errors import ConfigurationError
 from .registry import load_registry, project_root
+from .snapshot import SnapshotConfigurationError
+from .snapshot import validate_file as validate_snapshot_file
 
 VALID_MODES = {
     "rke2-ha",
@@ -21,45 +23,6 @@ VALID_MODES = {
     "docker",
     "raw",
     "windows",
-}
-
-KUBERNETES_MODES = {"rke2-ha", "k3s-ha", "existing-kubernetes"}
-
-ADAPTER_VERSION_REQUIREMENTS: dict[str, dict[str, tuple[str, ...]]] = {
-    "step-ca": {
-        "kubernetes": ("step_ca_chart",),
-        "standalone": ("step_ca",),
-        "docker": ("step_ca",),
-    },
-    "openbao-pki": {
-        "kubernetes": ("openbao_chart",),
-        "docker": ("openbao_image",),
-    },
-    "acme-sh": {"any": ("acme_sh_ref",)},
-    "boulder": {"any": ("boulder_ref",)},
-    "caddy-auto-https": {"any": ("caddy",)},
-    "cfssl": {"any": ("cfssl",)},
-    "dehydrated": {"any": ("dehydrated_ref",)},
-    "ejbca-community": {"any": ("ejbca_image",)},
-    "lego": {"any": ("lego",)},
-    "lemur": {"any": ("lemur_ref",)},
-    "spire": {"any": ("spire_chart",)},
-    "traefik-acme": {
-        "standalone": ("traefik",),
-        "docker": ("traefik",),
-    },
-    "win-acme": {"windows": ("win_acme",)},
-}
-
-ADAPTER_CHECKSUM_REQUIREMENTS: dict[str, tuple[str, ...]] = {
-    "cfssl": ("cfssl", "cfssljson", "cfssl-bundle"),
-    "win-acme": ("win_acme",),
-}
-
-CONTAINER_IMAGE_ADAPTERS = {
-    "step-ca": "step-ca",
-    "openbao-pki": "openbao-pki",
-    "ejbca-community": "ejbca-community",
 }
 
 
@@ -81,7 +44,7 @@ def load_config(path: str | Path) -> dict[str, Any]:
     source = Path(path)
     try:
         data = yaml.safe_load(source.read_text(encoding="utf-8"))
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         raise ConfigurationError(f"Unable to read configuration {source}: {exc}") from exc
     except yaml.YAMLError as exc:
         raise ConfigurationError(f"Invalid YAML in {source}: {exc}") from exc
@@ -115,50 +78,197 @@ def _is_any_network(value: str) -> bool:
         return False
 
 
-def _looks_placeholder(value: str | None) -> bool:
-    if not value:
-        return True
-    lowered = value.lower()
-    return (
-        "replace" in lowered
-        or "example." in lowered
-        or lowered.endswith(".invalid")
-        or lowered.endswith("@example.invalid")
-    )
-
-
 def _is_sha256(value: Any) -> bool:
     return isinstance(value, str) and bool(re.fullmatch(r"sha256:[a-fA-F0-9]{64}", value))
 
 
-def _install_mode(data: dict[str, Any], mode: str, slug: str) -> str:
-    explicit = _get(data, f"spec.adapters.options.{slug}.installMode")
-    if explicit:
-        return str(explicit)
-    if mode in KUBERNETES_MODES:
-        return "kubernetes"
-    if mode == "docker":
-        return "docker"
-    if mode in {"standalone", "raw"}:
-        if slug == "openbao-pki":
-            return "docker"
-        return "standalone"
-    if mode == "windows":
-        return "windows"
-    return "any"
+def _managed_cluster_version_issues(data: dict[str, Any]) -> list[str]:
+    mode = _get(data, "spec.mode")
+    if mode not in {"rke2-ha", "k3s-ha"}:
+        return []
+    product, suffix = ("rke2", "rke2r") if mode == "rke2-ha" else ("k3s", "k3s")
+    selected = _get(data, f"spec.versions.{product}")
+    if (
+        not isinstance(selected, str)
+        or len(selected) > 100
+        or not re.fullmatch(
+            rf"v1\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\+{suffix}[1-9][0-9]*", selected
+        )
+    ):
+        return [
+            f"Managed {product} requires a literal stable Kubernetes 1.x release "
+            f"with its distribution revision in spec.versions.{product}"
+        ]
+    return []
 
 
-def _adapter_version_keys(data: dict[str, Any], mode: str, slug: str) -> tuple[str, ...]:
-    requirements = ADAPTER_VERSION_REQUIREMENTS.get(slug, {})
-    install_mode = _install_mode(data, mode, slug)
-    return requirements.get(install_mode, requirements.get("any", ()))
+def _chart_acquisition_issues(data: dict[str, Any]) -> list[str]:
+    mode = _get(data, "spec.mode")
+    cluster_modes = {"rke2-ha", "k3s-ha", "existing-kubernetes"}
+    issues = []
+    requirements = []
+    if mode in cluster_modes:
+        versions = _get(data, "spec.versions", {})
+        checksums = versions.get("chartChecksums", {})
+        for addon, version_key in {
+            "certManager": "certManager",
+            "approverPolicy": "approverPolicy",
+            "trustManager": "trustManager",
+            "csiDriver": "csiDriver",
+            "traefik": "traefikChart",
+        }.items():
+            if _get(data, f"spec.addons.{addon}.enabled", False):
+                version = versions.get(version_key, "")
+                if addon == "traefik":
+                    version = _get(data, "spec.addons.traefik.chartVersion", version)
+                requirements.append(
+                    (
+                        f"spec.versions.{version_key}",
+                        version,
+                        f"spec.versions.chartChecksums.{addon}",
+                        checksums.get(addon),
+                    )
+                )
+    enabled = _get(data, "spec.adapters.enabled", [])
+    options = _get(data, "spec.adapters.options", {})
+    adapter_charts = []
+    for slug, key, fallback in [
+        (
+            "step-ca",
+            "step_ca_chart",
+            "kubernetes"
+            if mode in cluster_modes
+            else "docker"
+            if mode == "docker"
+            else "standalone",
+        ),
+        ("openbao-pki", "openbao_chart", "kubernetes" if mode in cluster_modes else "docker"),
+    ]:
+        if slug in enabled and options.get(slug, {}).get("installMode", fallback) == "kubernetes":
+            adapter_charts.append(key)
+    if "spire" in enabled and mode in cluster_modes:
+        adapter_charts.extend(["spire_crds_chart", "spire_chart"])
+    versions = _get(data, "spec.adapters.versions", {})
+    checksums = _get(data, "spec.adapters.checksums", {})
+    requirements.extend(
+        (
+            f"spec.adapters.versions.{key}",
+            versions.get(key, ""),
+            f"spec.adapters.checksums.{key}",
+            checksums.get(key),
+        )
+        for key in adapter_charts
+    )
+    for version_path, version, checksum_path, checksum in requirements:
+        if not isinstance(version, str) or not re.fullmatch(
+            r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9][A-Za-z0-9.+-]*)?", version
+        ):
+            issues.append(f"Chart requires a literal release version in {version_path}")
+        if not _is_sha256(checksum):
+            issues.append(f"Chart requires a reviewed SHA-256 archive identity in {checksum_path}")
+    return issues
 
 
-def _add_warning_or_error(result: ValidationResult, strict: bool, message: str) -> None:
-    (result.errors if strict else result.warnings).append(message)
+def _adapter_acquisition_issues(data: dict[str, Any]) -> list[str]:
+    mode = _get(data, "spec.mode")
+    enabled = set(_get(data, "spec.adapters.enabled", []))
+    versions = _get(data, "spec.adapters.versions", {})
+    checksums = _get(data, "spec.adapters.checksums", {})
+    options = _get(data, "spec.adapters.options", {})
+    requirements = {
+        slug: key
+        for slug, key in {
+            "lego": "lego",
+            "caddy-auto-https": "caddy",
+            "cfssl": "cfssl",
+        }.items()
+        if slug in enabled
+    }
+    if "traefik-acme" in enabled and mode in {"standalone", "raw", "docker"}:
+        requirements["traefik-acme"] = "traefik"
+    cluster_modes = {"rke2-ha", "k3s-ha", "existing-kubernetes"}
+    step_mode = options.get("step-ca", {}).get(
+        "installMode",
+        "kubernetes" if mode in cluster_modes else "docker" if mode == "docker" else "standalone",
+    )
+    if "step-ca" in enabled and step_mode == "standalone":
+        requirements["step-ca"] = "step_ca"
+    issues = []
+    for slug, key in {
+        "acme-sh": "acme_sh_ref",
+        "dehydrated": "dehydrated_ref",
+        "boulder": "boulder_ref",
+        "lemur": "lemur_ref",
+    }.items():
+        if slug in enabled and not re.fullmatch(r"[a-f0-9]{40}", versions.get(key, "")):
+            issues.append(
+                f"Adapter {slug} requires a reviewed full lowercase Git commit "
+                f"in spec.adapters.versions.{key}; "
+                "branches, tags and abbreviated refs are not accepted"
+            )
+    image_requirements = {}
+    if "step-ca" in enabled and step_mode == "docker":
+        image_requirements["step-ca"] = "step_ca_image"
+    openbao_mode = options.get("openbao-pki", {}).get(
+        "installMode", "kubernetes" if mode in cluster_modes else "docker"
+    )
+    if "openbao-pki" in enabled and openbao_mode == "docker":
+        image_requirements["openbao-pki"] = "openbao_image"
+    if "ejbca-community" in enabled:
+        image_requirements["ejbca-community"] = "ejbca_image"
+    for slug, key in image_requirements.items():
+        if not _is_sha256(versions.get(key, "")):
+            issues.append(
+                f"Adapter {slug} requires a reviewed SHA-256 image digest "
+                f"in spec.adapters.versions.{key}; image tags are mutable"
+            )
+    for slug, key in requirements.items():
+        if not re.fullmatch(
+            r"[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9][A-Za-z0-9.+-]*)?", versions.get(key, "")
+        ):
+            issues.append(
+                f"Adapter {slug} requires a reviewed numeric release version "
+                f"in spec.adapters.versions.{key}"
+            )
+        components = ("cfssl", "cfssljson", "cfssl-bundle") if key == "cfssl" else (key,)
+        for component in components:
+            values = [
+                checksums[name]
+                for name in (component, component + "_amd64", component + "_arm64")
+                if name in checksums
+            ]
+            if not values or not all(_is_sha256(value) for value in values):
+                issues.append(
+                    f"Adapter {slug} requires a reviewed SHA-256 in "
+                    f"spec.adapters.checksums.{component} (or an architecture-specific key)"
+                )
+    if "win-acme" in enabled:
+        checksum = checksums.get("win_acme", "")
+        if not (_is_sha256(checksum) or re.fullmatch(r"[a-fA-F0-9]{64}", checksum)):
+            issues.append(
+                "Adapter win-acme requires a reviewed SHA-256 in spec.adapters.checksums.win_acme"
+            )
+        if not re.fullmatch(
+            r"v?[0-9]+(?:\.[0-9]+){1,3}(?:[-+][A-Za-z0-9][A-Za-z0-9.+-]*)?",
+            versions.get("win_acme", ""),
+        ):
+            issues.append(
+                "Adapter win-acme requires a reviewed numeric release version "
+                "in spec.adapters.versions.win_acme"
+            )
+        download_url = options.get("win-acme", {}).get("downloadUrl", "")
+        if not isinstance(download_url, str) or not re.match(r"https://[^/]+/", download_url):
+            issues.append("Adapter win-acme requires an HTTPS release downloadUrl")
+    if "posh-acme" in enabled and not re.fullmatch(
+        r"[0-9]+(?:\.[0-9]+){1,3}", versions.get("posh_acme", "")
+    ):
+        issues.append(
+            "Adapter posh-acme requires a reviewed numeric spec.adapters.versions.posh_acme"
+        )
+    return issues
 
 
-def validate_config(data: dict[str, Any], *, strict: bool = False) -> ValidationResult:
+def validate_config(data: dict[str, Any], *, for_deployment: bool = False) -> ValidationResult:
     result = ValidationResult()
     schema_file = project_root() / "config" / "certweaver.schema.json"
     schema = json.loads(schema_file.read_text(encoding="utf-8"))
@@ -167,13 +277,90 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
         location = ".".join(str(p) for p in error.absolute_path) or "<root>"
         result.errors.append(f"Schema: {location}: {error.message}")
 
+    # Semantic checks and inventory rendering require the shapes established by
+    # the schema. Report malformed input instead of raising an AttributeError.
+    if result.errors:
+        return result
+
+    mapping_paths = [
+        "spec.rke2.etcdSnapshots",
+        "spec.rke2.etcdSnapshots.s3",
+        "spec.addons.issuers",
+        "spec.addons.issuers.letsEncryptStaging",
+        "spec.addons.issuers.letsEncryptProduction",
+        "spec.addons.issuers.internalCa",
+    ]
+    for section in ("addons", "adapters.options"):
+        mapping_paths.extend(f"spec.{section}.{key}" for key in _get(data, f"spec.{section}", {}))
+    missing = object()
+    for dotted in mapping_paths:
+        value = _get(data, dotted, missing)
+        if value is not missing and not isinstance(value, dict):
+            result.errors.append(f"{dotted} must be a mapping")
+    boolean_paths = [
+        "spec.rke2.secretsEncryption",
+        "spec.rke2.auditPolicy",
+        "spec.rke2.selinux",
+        "spec.rke2.protectKernelDefaults",
+        "spec.rke2.disablePackagedIngress",
+        "spec.rke2.etcdSnapshots.enabled",
+        "spec.rke2.etcdSnapshots.s3.enabled",
+        "spec.k3s.secretsEncryption",
+        "spec.k3s.selinux",
+        "spec.k3s.protectKernelDefaults",
+        "spec.addons.issuers.letsEncryptStaging.enabled",
+        "spec.addons.issuers.letsEncryptProduction.enabled",
+        "spec.addons.issuers.internalCa.enabled",
+        "spec.addons.monitoring.prometheusRules",
+        "spec.addons.trustManager.secretTargets",
+    ]
+    for addon in ("certManager", "approverPolicy", "trustManager", "csiDriver", "traefik"):
+        boolean_paths.append(f"spec.addons.{addon}.enabled")
+    boolean_paths.extend(
+        f"spec.addons.certManager.{key}"
+        for key in ("disableAutoApproval", "highAvailability", "networkPolicy", "prometheus")
+    )
+    for dotted in boolean_paths:
+        value = _get(data, dotted, missing)
+        if value is not missing and not isinstance(value, bool):
+            result.errors.append(f"{dotted} must be a boolean")
+    for dotted in (
+        "spec.rke2.etcdSnapshots.s3.secretName",
+        "spec.rke2.etcdSnapshots.s3.configSecretFile",
+    ):
+        value = _get(data, dotted, missing)
+        if value is not missing and (not isinstance(value, str) or not value.strip()):
+            result.errors.append(f"{dotted} must be a nonempty string")
+    if result.errors:
+        return result
+
     mode = _get(data, "spec.mode")
     environment = _get(data, "spec.environment", "production")
+    if _get(data, "spec.platform.fetchKubeconfig", False) and mode not in {
+        "rke2-ha",
+        "k3s-ha",
+        "existing-kubernetes",
+    }:
+        result.errors.append("Kubeconfig export requires a managed or existing Kubernetes mode")
+    output = _get(data, "spec.platform.kubeconfigOutput")
+    if output is not None and (
+        not output.startswith(("/", "~/"))
+        or output.endswith("/")
+        or "//" in output
+        or "\\" in output
+        or "{" in output
+        or "}" in output
+        or any(ord(c) < 32 or ord(c) == 127 for c in output)
+        or {".", ".."}.intersection(output.split("/"))
+    ):
+        result.errors.append("spec.platform.kubeconfigOutput requires a literal POSIX file path")
     if mode not in VALID_MODES:
         result.errors.append(f"Unsupported deployment mode: {mode!r}")
         return result
 
     nodes = _get(data, "spec.platform.nodes", []) or []
+    if not nodes:
+        result.errors.append("At least one deployment node is required")
     names = [node.get("name") for node in nodes]
     addresses = [node.get("address") for node in nodes]
     priorities = [
@@ -196,6 +383,16 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
         result.errors.append("Production managementCidrs must not allow 0.0.0.0/0 or ::/0")
 
     if mode in {"rke2-ha", "k3s-ha"}:
+        for node in nodes:
+            try:
+                address = ipaddress.ip_address(node["address"])
+                if address.version != 4:
+                    raise ValueError("IPv6 HA is not implemented")
+            except ValueError:
+                result.errors.append(
+                    f"HA node {node['name']!r} requires an IPv4 address; "
+                    "managed Keepalived and firewall rules currently support IPv4 only"
+                )
         if environment == "production" and len(nodes) < 3:
             result.errors.append("Production HA mode requires at least three server nodes")
         if nodes and len(nodes) % 2 == 0:
@@ -203,17 +400,23 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
 
         lb_enabled = _get(data, "spec.platform.loadBalancer.enabled", True)
         lb_colocated = _get(data, "spec.platform.loadBalancer.colocated", True)
+        lb_provider = _get(data, "spec.platform.loadBalancer.provider", "haproxy-keepalived")
+        if lb_enabled and (not lb_colocated or lb_provider == "external"):
+            result.errors.append(
+                "The managed load balancer currently runs on cluster servers; "
+                "use colocated=true or disable it and supply an external VIP endpoint"
+            )
         vip = _get(data, "spec.platform.vip.address")
         vip_interface = _get(data, "spec.platform.vip.interface")
-        if lb_enabled and not vip:
-            result.errors.append("HA mode with the managed load balancer requires a VIP address")
+        if not vip:
+            result.errors.append("HA mode requires a managed or external VIP address")
         if lb_enabled and lb_colocated and not vip_interface:
             result.errors.append("Co-located Keepalived requires spec.platform.vip.interface")
         try:
-            if vip:
-                ipaddress.ip_address(vip)
+            if vip and ipaddress.ip_address(vip).version != 4:
+                raise ValueError("IPv6 HA is not implemented")
         except ValueError:
-            result.errors.append(f"VIP address is invalid: {vip!r}")
+            result.errors.append(f"VIP address must be a valid IPv4 address: {vip!r}")
         if vip and vip in addresses:
             result.errors.append("VIP must not be identical to a node address")
 
@@ -224,13 +427,22 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
             "https": _get(data, "spec.platform.vip.ports.https", 443),
         }
         enabled_frontends = ["api", "registration"]
+        if (
+            mode == "rke2-ha"
+            and _get(data, "spec.addons.traefik.enabled", False)
+            and not _get(data, "spec.rke2.disablePackagedIngress", True)
+        ):
+            result.errors.append(
+                "Managed Traefik requires spec.rke2.disablePackagedIngress=true; "
+                "review ingress ownership and migrate existing packaged controllers first"
+            )
         if _get(data, "spec.addons.traefik.enabled", False):
             enabled_frontends.extend(["http", "https"])
         used = [frontend_ports[name] for name in enabled_frontends]
         if len(used) != len(set(used)):
             result.errors.append("Enabled VIP frontend ports must be unique")
 
-        if lb_colocated:
+        if lb_enabled and lb_colocated:
             api_port = frontend_ports["api"]
             registration_port = frontend_ports["registration"]
             if api_port == 6443:
@@ -250,6 +462,15 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
                 )
 
         manage_firewalld = _get(data, "spec.platform.network.manageFirewalld", True)
+        if manage_firewalld:
+            for cidr in [*management_cidrs, *ingress_cidrs]:
+                try:
+                    if ipaddress.ip_network(cidr, strict=False).version != 4:
+                        result.errors.append(
+                            "Managed HA firewall rules currently require IPv4 CIDRs"
+                        )
+                except ValueError:
+                    pass  # Invalid syntax has already been reported above.
         if environment == "production" and manage_firewalld and not management_cidrs:
             result.errors.append(
                 "Production HA with managed firewalld requires at least one management CIDR"
@@ -301,8 +522,43 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
                 "spec.adapters.acknowledge after reviewing its risk"
             )
 
-    if mode in KUBERNETES_MODES:
+    option_problem = False
+    for slug, option in _get(data, "spec.adapters.options", {}).items():
+        if not isinstance(option, dict):
+            result.errors.append(f"spec.adapters.options.{slug} must be a mapping")
+            option_problem = True
+    for slug, modes in {
+        "step-ca": ("standalone", "docker", "kubernetes"),
+        "openbao-pki": ("docker", "kubernetes"),
+    }.items():
+        if (
+            slug in enabled
+            and _get(data, f"spec.adapters.options.{slug}.installMode", modes[0]) not in modes
+        ):
+            result.errors.append(f"{slug} installMode must be one of {', '.join(modes)}")
+            option_problem = True
+    if option_problem:
+        return result
+    acquisition_issues = (
+        _adapter_acquisition_issues(data)
+        + _chart_acquisition_issues(data)
+        + _managed_cluster_version_issues(data)
+    )
+    if environment == "production" or for_deployment:
+        result.errors.extend(acquisition_issues)
+    else:
+        result.warnings.extend(acquisition_issues)
+
+    if mode in {"rke2-ha", "k3s-ha", "existing-kubernetes"}:
         cert_manager_enabled = _get(data, "spec.addons.certManager.enabled", False)
+        for slug, addon in {
+            "cert-manager": "certManager",
+            "trust-manager": "trustManager",
+            "cert-manager-csi-driver": "csiDriver",
+            "traefik-acme": "traefik",
+        }.items():
+            if slug in enabled and not _get(data, f"spec.addons.{addon}.enabled", False):
+                result.errors.append(f"Adapter {slug} requires enabled spec.addons.{addon}")
         if "cert-manager" not in enabled:
             result.warnings.append("Kubernetes mode does not enable cert-manager")
         if _get(data, "spec.addons.approverPolicy.enabled", False) and not cert_manager_enabled:
@@ -317,8 +573,10 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
             result.errors.append(
                 "approver-policy requires cert-manager automatic approval to be disabled"
             )
-        if environment == "production" and cert_manager_enabled and not _get(
-            data, "spec.addons.certManager.disableAutoApproval", False
+        if (
+            environment == "production"
+            and cert_manager_enabled
+            and not _get(data, "spec.addons.certManager.disableAutoApproval", False)
         ):
             result.errors.append(
                 "Production cert-manager deployments must disable automatic approval"
@@ -333,68 +591,41 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
             )
 
         issuer_base = "spec.addons.issuers"
-        for issuer in ("letsEncryptStaging", "letsEncryptProduction"):
+        for issuer in ("letsEncryptStaging", "letsEncryptProduction", "internalCa"):
             if _get(data, f"{issuer_base}.{issuer}.enabled", False):
-                email = _get(data, f"{issuer_base}.{issuer}.email")
-                if _looks_placeholder(email):
-                    result.errors.append(
-                        f"{issuer} requires a real operator email before production use"
-                    )
-        if _get(data, f"{issuer_base}.internalCa.enabled", False):
-            provider = _get(data, f"{issuer_base}.internalCa.provider")
-            provider_adapters = {
-                "step-ca": "step-ca",
-                "openbao": "openbao-pki",
-                "openbao-pki": "openbao-pki",
-                "ejbca": "ejbca-community",
-                "ejbca-community": "ejbca-community",
-            }
-            provider_adapter = provider_adapters.get(str(provider))
-            if provider_adapter and provider_adapter not in enabled:
-                result.warnings.append(
-                    f"Internal CA provider {provider!r} is not enabled as a local adapter; "
-                    "verify that an external issuer endpoint is configured"
-                )
-        if strict and environment == "production":
-            if _get(data, "spec.platform.fetchKubeconfig", False):
                 result.errors.append(
-                    "Strict production validation forbids fetching a cluster kubeconfig "
-                    "to the controller"
+                    f"Managed issuer {issuer} is not implemented; keep its enabled flag false "
+                    "and provision a reviewed issuer manifest separately"
                 )
-            monitoring_rules = _get(data, "spec.addons.monitoring.prometheusRules", False)
-            external_monitoring = _get(data, "spec.monitoring.external", False)
-            if not monitoring_rules and not external_monitoring:
-                result.errors.append(
-                    "Strict production validation requires Prometheus alert rules or an explicit "
-                    "external monitoring declaration"
-                )
-
     source = Path(data.get("__source_path__", ".")).parent
     secret_fields: tuple[str, ...] = ()
     if mode in {"rke2-ha", "k3s-ha"}:
-        secret_fields = (
-            "spec.secrets.rke2TokenFile",
-            "spec.secrets.keepalivedAuthFile",
-        )
-        if _get(data, "spec.rke2.etcdSnapshots.s3.enabled", False):
+        secret_fields = ("spec.secrets.rke2TokenFile",)
+        if _get(data, "spec.platform.loadBalancer.enabled", True):
+            secret_fields += ("spec.secrets.keepalivedAuthFile",)
+        if mode == "rke2-ha" and _get(data, "spec.rke2.etcdSnapshots.s3.enabled", False):
             secret_fields += ("spec.rke2.etcdSnapshots.s3.configSecretFile",)
     for dotted in secret_fields:
         value = _get(data, dotted)
         if not value:
-            if strict and _get(data, "spec.environment") == "production":
-                result.errors.append(f"Strict production validation requires {dotted}")
             continue
         secret_path = source / value
         if not secret_path.exists():
-            _add_warning_or_error(
-                result,
-                strict and _get(data, "spec.environment") == "production",
-                f"Secret file does not exist: {value}",
-            )
+            result.warnings.append(f"Secret file does not exist yet: {value}")
+            continue
+        if dotted.endswith("configSecretFile") and environment == "production":
+            try:
+                validate_snapshot_file(secret_path)
+            except SnapshotConfigurationError as exc:
+                result.errors.append(str(exc))
+            except (OSError, UnicodeError):
+                result.errors.append("Unable to read UTF-8 RKE2 S3 configuration")
             continue
         try:
-            secret = secret_path.read_text(encoding="utf-8").strip()
-        except OSError as exc:
+            with secret_path.open(encoding="utf-8", newline="") as stream:
+                raw_secret = stream.read()
+            secret = raw_secret.strip()
+        except (OSError, UnicodeError) as exc:
             result.errors.append(f"Unable to read secret file {value}: {exc}")
             continue
         if dotted.endswith("rke2TokenFile") and len(secret) < 16:
@@ -402,7 +633,7 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
         if dotted.endswith("keepalivedAuthFile") and len(secret) < 8:
             result.errors.append("Keepalived auth file must contain at least 8 characters")
         if dotted.endswith("configSecretFile") and not secret:
-            result.errors.append("RKE2 S3 snapshot configuration file must not be empty")
+            result.errors.append("RKE2 S3 snapshot configuration secret file must not be empty")
 
     versions = _get(data, "spec.versions", {}) or {}
     if environment == "production":
@@ -426,11 +657,14 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
                     required_versions.append(version_key)
         for required in dict.fromkeys(required_versions):
             value = versions.get(required)
-            if value in (None, "", "latest"):
-                _add_warning_or_error(
-                    result,
-                    strict,
-                    f"Production deployment requires pinned spec.versions.{required}",
+            if not isinstance(value, str) or value.strip().lower() in (
+                "",
+                "latest",
+                "stable",
+                "current",
+            ):
+                result.errors.append(
+                    f"Production deployment must pin spec.versions.{required} to a version string"
                 )
         installer_checksum_key = {
             "rke2-ha": "rke2InstallerChecksum",
@@ -446,45 +680,10 @@ def validate_config(data: dict[str, Any], *, strict: bool = False) -> Validation
             and not versions.get("helmChecksum")
             and not versions.get("helmChecksums")
         ):
-            _add_warning_or_error(
-                result,
-                strict,
-                "Production Kubernetes deployment requires a valid Helm archive SHA-256 checksum",
+            result.errors.append(
+                "Production Kubernetes deployment must pin a Helm archive SHA-256 checksum"
             )
-
-        adapter_versions = _get(data, "spec.adapters.versions", {}) or {}
-        adapter_checksums = _get(data, "spec.adapters.checksums", {}) or {}
-        for key, checksum in adapter_checksums.items():
-            if not _is_sha256(checksum):
-                result.errors.append(
-                    f"spec.adapters.checksums.{key} must use sha256:<64 hex characters>"
-                )
-        for slug in enabled:
-            for key in _adapter_version_keys(data, mode, slug):
-                if adapter_versions.get(key) in (None, "", "latest"):
-                    _add_warning_or_error(
-                        result,
-                        strict,
-                        f"Production deployment requires pinned spec.adapters.versions.{key} "
-                        f"for enabled adapter {slug}",
-                    )
-            for key in ADAPTER_CHECKSUM_REQUIREMENTS.get(slug, ()):
-                if not _is_sha256(adapter_checksums.get(key)):
-                    _add_warning_or_error(
-                        result,
-                        strict,
-                        f"Production deployment requires spec.adapters.checksums.{key} "
-                        f"for enabled adapter {slug}",
-                    )
-            image_key = CONTAINER_IMAGE_ADAPTERS.get(slug)
-            if image_key and _install_mode(data, mode, slug) == "docker":
-                image = _get(data, f"spec.adapters.options.{image_key}.image", "")
-                if not isinstance(image, str) or "@sha256:" not in image:
-                    _add_warning_or_error(
-                        result,
-                        strict,
-                        f"Production container adapter {slug} requires an immutable "
-                        "spec.adapters.options image reference with @sha256:<digest>",
-                    )
+        if versions.get("helmChecksum") and not _is_sha256(versions["helmChecksum"]):
+            result.errors.append("spec.versions.helmChecksum must be a SHA-256 checksum")
 
     return result

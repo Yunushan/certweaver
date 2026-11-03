@@ -16,3 +16,4 @@ secrets/
 .DS_Store
 .idea/
 .vscode/
+/release-evidence/

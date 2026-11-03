@@ -10,7 +10,7 @@ vrrp_script chk_certweaver_haproxy {
     timeout 2
     fall 3
     rise 2
-    weight -30
+    weight 0
 }
 
 vrrp_instance CERTWEAVER_VIP {

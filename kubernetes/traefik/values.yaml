@@ -62,9 +62,9 @@ securityContext:
   capabilities:
     drop:
       - ALL
-globalArguments:
-  - --global.checknewversion=false
-  - --global.sendanonymoususage=false
-additionalArguments:
-  - --api.dashboard=false
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+api:
+  dashboard: false
 # No certificatesResolvers entry: cert-manager owns certificate lifecycle by default.

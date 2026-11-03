@@ -1,18 +1,22 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 from . import __version__
-from .config import load_config, validate_config
-from .errors import CertWeaverError
+from .config import _get, load_config, validate_config
+from .enterprise import evaluate_enterprise, initialize_enterprise
+from .errors import CertWeaverError, ConfigurationError
 from .readiness import (
+    assess_evidence,
+    assessment_markdown,
     repo_score,
     score_markdown,
-    verify_live_evidence,
     write_evidence_bundle,
 )
 from .registry import load_registry, project_root
@@ -21,24 +25,15 @@ from .render import execution_plan, write_inventory
 
 def _config_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("-c", "--config", default="certweaver.yml", help="Configuration YAML")
-    parser.add_argument(
-        "--strict",
-        action="store_true",
-        help="Fail on production warnings such as missing secrets and unpinned artifacts",
-    )
 
 
-def _print_validation(config_path: str, *, strict: bool = False, fail: bool = True) -> int:
+def _print_validation(config_path: str, fail: bool = True) -> int:
     config = load_config(config_path)
-    result = validate_config(config, strict=strict)
+    result = validate_config(config)
     for warning in result.warnings:
         print(f"WARNING: {warning}")
-    if result.errors:
-        print(
-            f"ERROR: configuration validation failed ({len(result.errors)} issue(s)); "
-            "review the configuration and strict production policy.",
-            file=sys.stderr,
-        )
+    for error in result.errors:
+        print(f"ERROR: {error}", file=sys.stderr)
     if result.ok:
         print("Configuration is valid")
         return 0
@@ -46,7 +41,7 @@ def _print_validation(config_path: str, *, strict: bool = False, fail: bool = Tr
 
 
 def command_validate(args: argparse.Namespace) -> int:
-    return _print_validation(args.config, strict=args.strict)
+    return _print_validation(args.config)
 
 
 def command_matrix(_: argparse.Namespace) -> int:
@@ -74,7 +69,7 @@ def command_matrix(_: argparse.Namespace) -> int:
 
 def command_plan(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config, strict=args.strict)
+    result = validate_config(config)
     result.require_ok()
     for idx, item in enumerate(execution_plan(config), start=1):
         print(f"{idx:02d}. {item}")
@@ -85,33 +80,27 @@ def command_plan(args: argparse.Namespace) -> int:
 
 def command_render(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    validate_config(config, strict=args.strict).require_ok()
+    validate_config(config).require_ok()
     destination = write_inventory(config, args.output)
     print(destination)
     return 0
 
 
 def command_score(args: argparse.Namespace) -> int:
+    if args.evidence:
+        config = load_config(args.config or "certweaver.yml")
+        assessment = assess_evidence(config, args.evidence)
+        print(assessment_markdown(assessment), end="")
+        return 0 if assessment.complete else 2
+    if args.config:
+        raise ConfigurationError("score --config requires --evidence DIRECTORY")
     print(score_markdown(), end="")
-    if args.evidence_dir:
-        config = load_config(args.config)
-        result = verify_live_evidence(args.evidence_dir, config)
-        if result.ok:
-            print("\nValidated deployment production maturity: **100/100**.")
-            print(f"Validated live evidence artifacts: {len(result.checked_artifacts)}")
-            return 0
-        print(
-            f"ERROR: live evidence validation failed ({len(result.errors)} issue(s)); "
-            "review the evidence bundle before claiming 100/100.",
-            file=sys.stderr,
-        )
-        return 2
     return 0
 
 
 def command_evidence(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config, strict=args.strict)
+    result = validate_config(config)
     result.require_ok()
     files = write_evidence_bundle(config, args.output)
     score, maximum = repo_score()
@@ -124,19 +113,30 @@ def command_evidence(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_evidence_verify(args: argparse.Namespace) -> int:
-    config = load_config(args.config)
-    result = verify_live_evidence(args.evidence_dir, config)
-    if not result.ok:
-        print(
-            f"ERROR: live evidence validation failed ({len(result.errors)} issue(s)); "
-            "review the evidence bundle.",
-            file=sys.stderr,
-        )
-        return 2
-    print("Live evidence validation passed")
-    print("Validated deployment production maturity: 100/100")
-    print(f"Validated live evidence artifacts: {len(result.checked_artifacts)}")
+def command_enterprise_score(args: argparse.Namespace) -> int:
+    assessment = evaluate_enterprise(args.assessment)
+    if args.json:
+        print(json.dumps(assessment.to_dict(), indent=2))
+    else:
+        print(f"Enterprise verified credit: {assessment.verified_points:g}/100")
+        print(f"Assessed controls: {assessment.assessed_controls}/100")
+        print(f"Production decision: {assessment.production_decision}")
+        print("Authentication backend: unavailable in this CLI; assured credit is denied")
+        print("Zero verified credit means no accepted proof, not measured operational failure.")
+        for category, points in assessment.category_scores.items():
+            print(f"  {category}: {points:g}")
+        for gate, status in assessment.gates.items():
+            print(f"  {gate}: {status}")
+        for error in assessment.errors:
+            print(f"ERROR: {error}")
+        for control in assessment.controls:
+            if control.limitations:
+                print(f"{control.control_id}: {'; '.join(control.limitations)}")
+    return 0 if assessment.complete else 2
+
+
+def command_enterprise_init(args: argparse.Namespace) -> int:
+    print(initialize_enterprise(args.output))
     return 0
 
 
@@ -152,17 +152,46 @@ def _playbook_for_mode(mode: str) -> str:
     }[mode]
 
 
+def _required_secret_files(config: dict) -> dict[str, Path | None]:
+    if _get(config, "spec.mode") not in {"rke2-ha", "k3s-ha"}:
+        return {}
+    source = Path(config.get("__source_path__", ".")).parent
+    values = {
+        "RKE2/K3s token": _get(config, "spec.secrets.rke2TokenFile"),
+    }
+    if _get(config, "spec.platform.loadBalancer.enabled", True):
+        values["Keepalived authentication"] = _get(config, "spec.secrets.keepalivedAuthFile")
+    if _get(config, "spec.mode") == "rke2-ha" and _get(
+        config, "spec.rke2.etcdSnapshots.s3.enabled", False
+    ):
+        values["etcd S3 configuration"] = _get(
+            config, "spec.rke2.etcdSnapshots.s3.configSecretFile"
+        )
+    return {name: source / value if value else None for name, value in values.items()}
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config, strict=args.strict)
+    result = validate_config(config, for_deployment=True)
     checks = {
         "python": sys.executable,
         "ansible-playbook": shutil.which("ansible-playbook"),
-        "ssh": shutil.which("ssh"),
     }
-    mode = config.get("spec", {}).get("mode")
+    mode = _get(config, "spec.mode")
+    if mode != "windows":
+        checks["ssh"] = shutil.which("ssh")
+    checks.update(
+        {
+            f"{name} file": str(path) if path and path.is_file() else None
+            for name, path in _required_secret_files(config).items()
+        }
+        if result.ok
+        else {}
+    )
     if mode == "windows":
-        checks["ansible Windows collections"] = "checked during deployment"
+        print(
+            "NOTE: Install the ansible.windows and community.windows collections before deployment"
+        )
     failed = False
     for name, value in checks.items():
         state = "OK" if value else "MISSING"
@@ -170,21 +199,23 @@ def command_doctor(args: argparse.Namespace) -> int:
         failed |= not bool(value)
     for warning in result.warnings:
         print(f"WARNING: {warning}")
-    if result.errors:
-        print(
-            f"ERROR: configuration validation failed ({len(result.errors)} issue(s)); "
-            "review the configuration and strict production policy."
-        )
+    for error in result.errors:
+        print(f"ERROR: {error}")
         failed = True
     return 2 if failed else 0
 
 
 def command_deploy(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config, strict=True)
+    result = validate_config(config, for_deployment=True)
     result.require_ok()
+    if not shutil.which("ansible-playbook"):
+        raise ConfigurationError("ansible-playbook is required; install the Ansible prerequisites")
+    for name, path in _required_secret_files(config).items():
+        if path is None or not path.is_file():
+            raise ConfigurationError(f"Required {name} file is missing; run certweaver doctor")
     root = project_root()
-    inventory = Path(args.inventory)
+    inventory = Path(args.inventory).resolve()
     write_inventory(config, inventory)
     mode = config["spec"]["mode"]
     cmd = [
@@ -199,8 +230,14 @@ def command_deploy(args: argparse.Namespace) -> int:
         cmd.extend(["--limit", args.limit])
     if args.tags:
         cmd.extend(["--tags", args.tags])
+    environment = os.environ.copy()
+    environment.setdefault("ANSIBLE_CONFIG", str(root / "ansible.cfg"))
+    roles_path = str(root / "roles")
+    if environment.get("ANSIBLE_ROLES_PATH"):
+        roles_path += os.pathsep + environment["ANSIBLE_ROLES_PATH"]
+    environment["ANSIBLE_ROLES_PATH"] = roles_path
     print("Executing:", " ".join(cmd))
-    return subprocess.run(cmd, check=False).returncode
+    return subprocess.run(cmd, check=False, env=environment).returncode
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -225,14 +262,8 @@ def build_parser() -> argparse.ArgumentParser:
     render.set_defaults(func=command_render)
 
     score = sub.add_parser("score", help="Show the repo-local production maturity score")
-    score.add_argument(
-        "-c", "--config", default="certweaver.yml", help="Configuration YAML for evidence binding"
-    )
-    score.add_argument(
-        "-e",
-        "--evidence-dir",
-        help="Validate a complete live evidence bundle and report deployment maturity",
-    )
+    score.add_argument("-c", "--config", help="Deployment configuration for evidence assessment")
+    score.add_argument("--evidence", help="Assess a reviewed evidence bundle; exit 2 if incomplete")
     score.set_defaults(func=command_score)
 
     evidence = sub.add_parser("evidence", help="Write a sanitized production evidence bundle")
@@ -240,16 +271,22 @@ def build_parser() -> argparse.ArgumentParser:
     evidence.add_argument("-o", "--output", default=".certweaver/evidence")
     evidence.set_defaults(func=command_evidence)
 
-    evidence_verify = sub.add_parser(
-        "evidence-verify", help="Verify sanitized live evidence for a deployment"
+    enterprise_init = sub.add_parser(
+        "enterprise-init", help="Create an unassessed enterprise v1 record without overwriting"
     )
-    evidence_verify.add_argument(
-        "-c", "--config", required=True, help="Configuration YAML used for the deployment"
+    enterprise_init.add_argument("-o", "--output", required=True)
+    enterprise_init.set_defaults(func=command_enterprise_init)
+
+    enterprise_score = sub.add_parser(
+        "enterprise-score", help="Recompute enterprise v1 evidence credit and gates"
     )
-    evidence_verify.add_argument(
-        "-e", "--evidence-dir", required=True, help="Evidence bundle directory"
+    enterprise_score.add_argument(
+        "assessment", help="Assessment JSON; evidence paths relative to it"
     )
-    evidence_verify.set_defaults(func=command_evidence_verify)
+    enterprise_score.add_argument(
+        "--json", action="store_true", help="Export all control decisions"
+    )
+    enterprise_score.set_defaults(func=command_enterprise_score)
 
     doctor = sub.add_parser("doctor", help="Check local prerequisites")
     _config_argument(doctor)
@@ -269,7 +306,7 @@ def main() -> None:
     try:
         args = build_parser().parse_args()
         raise SystemExit(args.func(args))
-    except CertWeaverError as exc:
+    except (CertWeaverError, OSError) as exc:
         print(f"certweaver: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
 

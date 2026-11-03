@@ -2,6 +2,7 @@
   ansible.builtin.include_tasks: ../_require_version.yml
   vars:
     certweaver_required_adapter: ejbca-community-image
+    certweaver_require_image_digest: true
     certweaver_required_version: "{{ certweaver_adapter_versions.ejbca_image }}"
 
 - name: Guard EJBCA demo database in production
@@ -32,6 +33,7 @@
     owner: root
     group: root
     mode: "0600"
+  register: certweaver_ejbca_quadlet
   notify: Reload adapter systemd
 
 - name: Activate EJBCA Quadlet when explicitly requested
@@ -44,4 +46,4 @@
       ansible.builtin.systemd:
         name: certweaver-ejbca.service
         enabled: true
-        state: started
+        state: "{{ 'restarted' if certweaver_ejbca_quadlet.changed else 'started' }}"

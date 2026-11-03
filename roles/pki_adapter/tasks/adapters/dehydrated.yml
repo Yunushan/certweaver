@@ -1,7 +1,8 @@
-- name: Require pinned dehydrated Git ref
+- name: Require immutable dehydrated commit before prerequisites
   ansible.builtin.include_tasks: ../_require_version.yml
   vars:
     certweaver_required_adapter: dehydrated
+    certweaver_require_git_commit: true
     certweaver_required_version: "{{ certweaver_adapter_versions.dehydrated_ref }}"
 
 - name: Install dehydrated dependencies
@@ -9,15 +10,16 @@
     name: [git, openssl, curl]
     state: present
 
-- name: Clone pinned dehydrated source
-  ansible.builtin.git:
-    repo: https://github.com/dehydrated-io/dehydrated.git
-    dest: "{{ certweaver_adapter_root }}/dehydrated"
-    version: "{{ certweaver_adapter_versions.dehydrated_ref }}"
-    update: false
+- name: Acquire verified dehydrated Git source
+  ansible.builtin.include_tasks: ../_checkout_verified_git.yml
+  vars:
+    certweaver_git_name: dehydrated
+    certweaver_git_repository: https://github.com/dehydrated-io/dehydrated.git
+    certweaver_git_commit: "{{ certweaver_adapter_versions.dehydrated_ref }}"
 
 - name: Link dehydrated CLI
   ansible.builtin.file:
-    src: "{{ certweaver_adapter_root }}/dehydrated/dehydrated"
+    src: "{{ certweaver_adapter_source_path }}/dehydrated"
     dest: /usr/local/bin/dehydrated
     state: link
+  when: not ansible_check_mode

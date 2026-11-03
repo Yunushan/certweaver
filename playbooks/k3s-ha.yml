@@ -1,20 +1,51 @@
-- name: Prepare all K3s HA servers
+- name: Validate all K3s version transitions before platform changes
   hosts: cluster_servers
   become: true
+  gather_facts: false
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
+  roles:
+    - role: cluster_version
+
+- name: Require consistent running identity before changing existing K3s versions
+  hosts: cluster_servers
+  become: true
+  gather_facts: false
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
+  roles:
+    - role: cluster_health
+      vars:
+        certweaver_cluster_health_phase: pre-upgrade
+      when:
+        - certweaver_cluster_version_current | length > 0
+        - certweaver_cluster_version_install_needed | bool
+
+- name: Bootstrap the first K3s server
+  hosts: cluster_bootstrap
+  become: true
   gather_facts: true
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
+  serial: 1
+  pre_tasks:
+    - name: Reobserve the installed version immediately before host preparation
+      ansible.builtin.include_role:
+        name: cluster_version
+    - name: Recheck changing server runtime immediately before host preparation
+      ansible.builtin.include_role:
+        name: cluster_health
+      vars:
+        certweaver_cluster_health_phase: pre-upgrade
+      when:
+        - certweaver_cluster_version_current | length > 0
+        - certweaver_cluster_version_install_needed | bool
   roles:
     - role: common
       tags: [common]
     - role: haproxy_keepalived
       when: certweaver_load_balancer_enabled | bool
       tags: [load-balancer]
-
-- name: Bootstrap the first K3s server
-  hosts: cluster_bootstrap
-  become: true
-  gather_facts: true
-  serial: 1
-  roles:
     - role: k3s_server
       tags: [k3s]
 
@@ -22,8 +53,27 @@
   hosts: cluster_joiners
   become: true
   gather_facts: true
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
   serial: 1
+  pre_tasks:
+    - name: Reobserve the installed version immediately before host preparation
+      ansible.builtin.include_role:
+        name: cluster_version
+    - name: Recheck changing server runtime immediately before host preparation
+      ansible.builtin.include_role:
+        name: cluster_health
+      vars:
+        certweaver_cluster_health_phase: pre-upgrade
+      when:
+        - certweaver_cluster_version_current | length > 0
+        - certweaver_cluster_version_install_needed | bool
   roles:
+    - role: common
+      tags: [common]
+    - role: haproxy_keepalived
+      when: certweaver_load_balancer_enabled | bool
+      tags: [load-balancer]
     - role: k3s_server
       tags: [k3s]
 
@@ -31,6 +81,8 @@
   hosts: cluster_bootstrap
   become: true
   gather_facts: true
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
   roles:
     - role: cluster_addons
       tags: [addons]

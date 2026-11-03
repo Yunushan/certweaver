@@ -23,7 +23,11 @@ class Adapter:
 
 
 def project_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    package = Path(__file__).resolve().parent
+    bundled = package / "_assets"
+    if (bundled / "config" / "pki-registry.yml").is_file():
+        return bundled
+    return package.parents[1]
 
 
 def registry_path() -> Path:

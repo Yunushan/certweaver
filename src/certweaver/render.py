@@ -28,6 +28,7 @@ def _adapter_version_defaults() -> dict[str, str]:
     """Return the stable public variable names consumed by adapter roles."""
     return {
         "step_ca": "",
+        "step_ca_image": "",
         "step_ca_chart": "",
         "openbao_chart": "",
         "openbao_image": "",
@@ -40,6 +41,7 @@ def _adapter_version_defaults() -> dict[str, str]:
         "cfssl": "",
         "dehydrated_ref": "",
         "spire_chart": "",
+        "spire_crds_chart": "",
         "boulder_ref": "",
         "caddy": "",
         "traefik": "",
@@ -71,23 +73,18 @@ def inventory_from_config(config: dict[str, Any]) -> dict[str, Any]:
 
     common_vars = {
         "certweaver_mode": mode,
+        "certweaver_deployment_name": _get(config, "metadata.name", ""),
         "certweaver_environment": spec.get("environment", "production"),
         "certweaver_vip": vip.get("address"),
         "certweaver_vip_dns": vip.get("dnsName", ""),
         "certweaver_vip_interface": vip.get("interface"),
         "certweaver_vip_prefix_length": vip.get("prefixLength", 24),
         "certweaver_api_front_port": vip.get("ports", {}).get("api", 8443),
-        "certweaver_registration_front_port": vip.get("ports", {}).get(
-            "registration", 9346
-        ),
+        "certweaver_registration_front_port": vip.get("ports", {}).get("registration", 9346),
         "certweaver_http_front_port": vip.get("ports", {}).get("http", 80),
         "certweaver_https_front_port": vip.get("ports", {}).get("https", 443),
-        "certweaver_ingress_http_nodeport": lb.get("ingressNodePorts", {}).get(
-            "http", 30080
-        ),
-        "certweaver_ingress_https_nodeport": lb.get("ingressNodePorts", {}).get(
-            "https", 30443
-        ),
+        "certweaver_ingress_http_nodeport": lb.get("ingressNodePorts", {}).get("http", 30080),
+        "certweaver_ingress_https_nodeport": lb.get("ingressNodePorts", {}).get("https", 30443),
         "certweaver_load_balancer_enabled": lb.get("enabled", True),
         "certweaver_load_balancer_colocated": lb.get("colocated", True),
         "certweaver_keepalived_router_id": lb.get("virtualRouterId", 51),
@@ -105,6 +102,7 @@ def inventory_from_config(config: dict[str, Any]) -> dict[str, Any]:
         "certweaver_helm_version": versions.get("helm", "v3.21.2"),
         "certweaver_helm_checksum": versions.get("helmChecksum", ""),
         "certweaver_helm_checksums": versions.get("helmChecksums", {}),
+        "certweaver_chart_checksums": versions.get("chartChecksums", {}),
         "certweaver_cert_manager_version": versions.get("certManager"),
         "certweaver_approver_policy_version": versions.get("approverPolicy"),
         "certweaver_trust_manager_version": versions.get("trustManager"),
@@ -117,22 +115,19 @@ def inventory_from_config(config: dict[str, Any]) -> dict[str, Any]:
         "certweaver_adapter_versions": adapter_versions,
         "certweaver_adapter_checksums": adapters.get("checksums", {}),
         "certweaver_allow_risky_adapters": adapters.get("acknowledge", []),
-        "certweaver_cluster_name": config.get("metadata", {}).get(
-            "name", "certweaver"
-        ),
+        "certweaver_cluster_name": config.get("metadata", {}).get("name", "certweaver"),
         "certweaver_rke2_cni": rke2.get("cni", "canal"),
         "certweaver_rke2_selinux": rke2.get("selinux", True),
         "certweaver_rke2_secrets_encryption": rke2.get("secretsEncryption", True),
         "certweaver_rke2_audit_enabled": rke2.get("auditPolicy", True),
-        "certweaver_rke2_protect_kernel_defaults": rke2.get(
-            "protectKernelDefaults", False
-        ),
+        "certweaver_rke2_protect_kernel_defaults": rke2.get("protectKernelDefaults", False),
+        "certweaver_rke2_disable_packaged_ingress": rke2.get("disablePackagedIngress", True),
         "certweaver_rke2_disable_components": (
-            ["rke2-ingress-nginx"] if rke2.get("disablePackagedIngress", True) else []
+            ["rke2-ingress-nginx", "rke2-traefik", "rke2-traefik-crd"]
+            if rke2.get("disablePackagedIngress", True)
+            else []
         ),
-        "certweaver_rke2_etcd_snapshot_enabled": rke2.get("etcdSnapshots", {}).get(
-            "enabled", True
-        ),
+        "certweaver_rke2_etcd_snapshot_enabled": rke2.get("etcdSnapshots", {}).get("enabled", True),
         "certweaver_rke2_etcd_snapshot_schedule": rke2.get("etcdSnapshots", {}).get(
             "scheduleCron", "0 */6 * * *"
         ),
@@ -154,26 +149,24 @@ def inventory_from_config(config: dict[str, Any]) -> dict[str, Any]:
         ),
         "certweaver_k3s_selinux": k3s.get("selinux", True),
         "certweaver_k3s_secrets_encryption": k3s.get("secretsEncryption", True),
-        "certweaver_k3s_protect_kernel_defaults": k3s.get(
-            "protectKernelDefaults", False
-        ),
+        "certweaver_k3s_protect_kernel_defaults": k3s.get("protectKernelDefaults", False),
         "certweaver_existing_kubeconfig_source": platform.get(
             "existingKubeconfig", "/root/.kube/config"
         ),
-        "certweaver_fetch_kubeconfig": platform.get(
-            "fetchKubeconfig", False
-        ),
+        "certweaver_fetch_kubeconfig": platform.get("fetchKubeconfig", False),
         "certweaver_win_acme_version": adapter_versions.get("win_acme", ""),
+        "certweaver_posh_acme_version": adapter_versions.get("posh_acme", ""),
         "certweaver_win_acme_url": adapters.get("options", {})
         .get("win-acme", {})
         .get("downloadUrl", ""),
-        "certweaver_win_acme_checksum": adapters.get("checksums", {}).get(
-            "win_acme", ""
-        ),
+        "certweaver_win_acme_checksum": adapters.get("checksums", {}).get("win_acme", ""),
         "certweaver_posh_acme_repository": adapters.get("options", {})
         .get("posh-acme", {})
         .get("repository", "PSGallery"),
     }
+
+    if "kubeconfigOutput" in platform:
+        common_vars["certweaver_local_kubeconfig_path"] = platform["kubeconfigOutput"]
 
     all_hosts: dict[str, Any] = {}
     bootstrap_hosts: dict[str, Any] = {}
@@ -250,11 +243,14 @@ def execution_plan(config: dict[str, Any]) -> list[str]:
         vip = _get(config, "spec.platform.vip.address")
         plan.extend(
             [
-                f"Prepare {len(nodes)} Linux server nodes",
-                f"Configure HAProxy + Keepalived with floating VIP {vip}",
+                f"Prepare {len(nodes)} Linux server nodes one at a time with server reconciliation",
+                (
+                    f"Configure HAProxy + Keepalived with floating VIP {vip}"
+                    if _get(config, "spec.platform.loadBalancer.enabled", True)
+                    else f"Use the externally managed load-balancer endpoint {vip}"
+                ),
                 f"Bootstrap first {mode.split('-')[0].upper()} server",
-                "Join remaining servers serially and confirm quorum",
-                "Create external kubeconfig pointing to the VIP API endpoint",
+                "Join remaining servers serially after authenticated API and node readiness",
                 "Install cert-manager platform add-ons with pinned charts",
             ]
         )
@@ -262,6 +258,11 @@ def execution_plan(config: dict[str, Any]) -> list[str]:
         plan.append("Validate the supplied kubeconfig and install cluster add-ons")
     else:
         plan.append("Prepare target hosts for selected adapters")
+    if mode in {"rke2-ha", "k3s-ha", "existing-kubernetes"}:
+        if _get(config, "spec.platform.fetchKubeconfig", False):
+            plan.append("Export administrative kubeconfig to a private controller file (0600)")
+        elif mode in {"rke2-ha", "k3s-ha"}:
+            plan.append("Operator: obtain and verify a kubeconfig for the VIP API endpoint")
     for slug in enabled:
         adapter = registry.get(slug)
         if adapter:

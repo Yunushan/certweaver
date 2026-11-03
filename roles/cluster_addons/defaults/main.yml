@@ -1,6 +1,7 @@
 certweaver_helm_version: v3.21.2
 certweaver_helm_checksum: ""
 certweaver_helm_checksums: {}
+certweaver_chart_checksums: {}
 certweaver_helm_arch_map:
   x86_64: amd64
   aarch64: arm64
@@ -8,6 +9,7 @@ certweaver_kubeconfig_source_rke2: /etc/rancher/rke2/rke2.yaml
 certweaver_kubeconfig_source_k3s: /etc/rancher/k3s/k3s.yaml
 certweaver_kubeconfig_path: /root/.kube/config
 certweaver_fetch_kubeconfig: false
-certweaver_local_kubeconfig_path: .certweaver/kubeconfig
+certweaver_deployment_name: ""
+certweaver_local_kubeconfig_path: "~/.config/certweaver/{{ certweaver_deployment_name }}/kubeconfig"
 certweaver_existing_kubeconfig_source: /root/.kube/config
 certweaver_monitoring_prometheus_rules: false

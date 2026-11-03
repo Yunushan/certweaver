@@ -2,18 +2,26 @@
   ansible.builtin.include_tasks: ../_require_version.yml
   vars:
     certweaver_required_adapter: lego
+    certweaver_require_binary_version: true
     certweaver_required_version: "{{ certweaver_adapter_versions.lego }}"
 
-- name: Download and install lego
-  ansible.builtin.unarchive:
-    src: >-
+- name: Acquire verified lego archive
+  ansible.builtin.include_tasks: ../_download_verified.yml
+  vars:
+    certweaver_download_name: lego
+    certweaver_download_url: >-
       {{ 'https://github.com/go-acme/lego/releases/download/v' ~
          certweaver_adapter_versions.lego ~ '/lego_v' ~
          certweaver_adapter_versions.lego ~ '_linux_' ~
          certweaver_adapter_arch ~ '.tar.gz' }}
+
+- name: Install verified lego archive
+  ansible.builtin.unarchive:
+    src: "{{ certweaver_adapter_payload_path }}"
     dest: /usr/local/bin
     remote_src: true
     include: [lego]
     owner: root
     group: root
     mode: "0755"
+  when: not ansible_check_mode

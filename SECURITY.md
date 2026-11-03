@@ -2,13 +2,7 @@
 
 ## Reporting
 
-Do not open public issues for suspected vulnerabilities. Use the repository's
-GitHub private vulnerability reporting flow at:
-https://github.com/Yunushan/certweaver/security/advisories/new
-
-If private vulnerability reporting is temporarily unavailable, contact
-[@Yunushan](https://github.com/Yunushan) privately through GitHub. Do not send
-secrets, private keys, tokens, kubeconfigs, or customer infrastructure details.
+Do not open public issues for suspected vulnerabilities. Use the private security-reporting feature of the hosting platform or contact the maintainers through the security address configured by the deploying organization.
 
 ## Supported versions
 
@@ -20,10 +14,10 @@ CertWeaver deliberately references secret files or Ansible Vault values. Never p
 
 ## Repository controls
 
-This repository requires protected branches, mandatory review, passing
-CI/security checks, signed release tags, private vulnerability reporting, and
-restricted workflow permissions. Treat these hosting settings as deployment
-controls in addition to the files in this repository.
+Production repositories should require protected branches, mandatory review,
+passing CI/security checks, signed release tags, private vulnerability reporting,
+and restricted workflow permissions. Treat these hosting settings as deployment
+controls; they cannot be fully represented by files in this repository.
 
 ## Threat boundary
 

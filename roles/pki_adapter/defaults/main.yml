@@ -2,6 +2,7 @@ certweaver_adapter_root: /opt/certweaver/adapters
 certweaver_adapter_install_mode: auto
 certweaver_adapter_versions:
   step_ca: ""
+  step_ca_image: ""
   step_ca_chart: ""
   openbao_chart: ""
   openbao_image: ""
@@ -11,11 +12,16 @@ certweaver_adapter_versions:
   cfssl: ""
   dehydrated_ref: ""
   spire_chart: ""
+  spire_crds_chart: ""
   boulder_ref: ""
   caddy: ""
   traefik: ""
   lemur_ref: ""
 certweaver_adapter_checksums: {}
+certweaver_adapter_cache_root: /var/cache/certweaver/adapters
+certweaver_acme_sh_home: /opt/acme.sh
+certweaver_acme_sh_config_home: /etc/acme.sh
+certweaver_acme_sh_cert_home: /var/lib/acme.sh/certs
 certweaver_adapter_arch_map:
   x86_64: amd64
   aarch64: arm64

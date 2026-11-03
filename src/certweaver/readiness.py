@@ -4,13 +4,15 @@ import hashlib
 import json
 import re
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 import yaml
 
 from .config import _get, validate_config
+from .errors import ConfigurationError
+from .registry import project_root
 from .render import execution_plan
 
 
@@ -26,17 +28,22 @@ class ScoreArea:
 class EvidenceRequirement:
     control: str
     evidence: str
-    artifacts: tuple[str, ...]
 
 
 @dataclass(frozen=True)
-class LiveEvidenceResult:
+class EvidenceAssessment:
+    score: int
+    maximum: int
     errors: tuple[str, ...]
-    checked_artifacts: tuple[str, ...]
+    pending_controls: tuple[str, ...]
 
     @property
-    def ok(self) -> bool:
-        return not self.errors
+    def complete(self) -> bool:
+        return not self.errors and not self.pending_controls and self.score == self.maximum
+
+
+EVIDENCE_MAX_AGE = timedelta(days=30)
+EVIDENCE_MAX_BYTES = 10 * 1024 * 1024
 
 
 SCORE_AREAS: tuple[ScoreArea, ...] = (
@@ -93,7 +100,8 @@ SCORE_AREAS: tuple[ScoreArea, ...] = (
         "Evidence automation",
         5,
         5,
-        "Local score reporting plus sanitized evidence-bundle generation.",
+        "Sanitized evidence bundles and configuration-bound, implementation-bound "
+        "review checks for artifact integrity, freshness, and completeness.",
     ),
     ScoreArea(
         "Documentation and limits",
@@ -110,106 +118,50 @@ REQUIRED_EVIDENCE: tuple[EvidenceRequirement, ...] = (
         "RKE2 HA install",
         "kubectl node inventory, RKE2 service status from all three nodes, and etcd "
         "member health.",
-        (
-            "rke2-ha/nodes.txt",
-            "rke2-ha/rke2-services.txt",
-            "rke2-ha/etcd-members.txt",
-            "rke2-ha/attestation.json",
-        ),
     ),
     EvidenceRequirement(
         "VIP failover",
         "Active VIP owner before and after stopping HAProxy or Keepalived on the "
         "current owner, plus API success through the VIP.",
-        (
-            "vip-failover/before.txt",
-            "vip-failover/after.txt",
-            "vip-failover/api-check.txt",
-            "vip-failover/attestation.json",
-        ),
     ),
     EvidenceRequirement(
         "Backup and restore",
         "A staging restore from an etcd snapshot using the matching RKE2 token.",
-        ("backup-restore/restore.txt", "backup-restore/attestation.json"),
     ),
     EvidenceRequirement(
         "Certificate issuance",
         "A successful CertificateRequest through the approved issuer path, with "
         "approver-policy enforcing policy.",
-        (
-            "certificate-issuance/certificate-requests.txt",
-            "certificate-issuance/approver-policy.txt",
-            "certificate-issuance/attestation.json",
-        ),
     ),
     EvidenceRequirement(
         "Trust distribution",
         "trust-manager Bundle reconciliation and expected target ConfigMaps or Secrets.",
-        (
-            "trust-distribution/bundles.yaml",
-            "trust-distribution/targets.txt",
-            "trust-distribution/attestation.json",
-        ),
     ),
     EvidenceRequirement(
         "Network controls",
         "Firewalld rich rules and an external port scan from management and "
         "non-management networks.",
-        (
-            "network-controls/firewalld.txt",
-            "network-controls/scan-management.txt",
-            "network-controls/scan-non-management.txt",
-            "network-controls/attestation.json",
-        ),
     ),
     EvidenceRequirement(
         "Host hardening",
         "SELinux enforcing, swap disabled, chrony synchronized, audit logs written, "
         "and CIS/sysctl decision recorded.",
-        (
-            "host-hardening/selinux.txt",
-            "host-hardening/swap.txt",
-            "host-hardening/chrony.txt",
-            "host-hardening/audit.txt",
-            "host-hardening/cis-decision.txt",
-            "host-hardening/attestation.json",
-        ),
     ),
     EvidenceRequirement(
         "Secret handling",
         "RKE2 token, Keepalived auth, DNS credentials, CA keys, unseal material, "
         "and backup keys stored in approved systems.",
-        ("secret-handling/attestation.json",),
     ),
     EvidenceRequirement(
         "Upgrade rehearsal",
         "Staging upgrade of RKE2, Helm charts, and adapters using pinned versions.",
-        ("upgrade-rehearsal/upgrade.txt", "upgrade-rehearsal/attestation.json"),
     ),
     EvidenceRequirement(
         "Incident readiness",
         "Documented CA key compromise, certificate revocation, cluster restore, and "
         "credential rotation procedure.",
-        ("incident-readiness.md", "incident-readiness-attestation.json"),
     ),
 )
-
-
-_SENSITIVE_EVIDENCE_PATTERNS = (
-    re.compile(r"-----BEGIN [^-]*PRIVATE KEY-----", re.IGNORECASE),
-    re.compile(
-        r'(?im)(?:^|\")(?:token|client-key-data|password|passphrase|rke2_token|'
-        r'keepalived_auth|aws_secret_access_key|secret_access_key|private_key|'
-        r'unseal_key|bearer|authorization)\"?\s*[:=]'
-    ),
-    re.compile(r"(?im)^\s*(?:clusters|contexts|users):\s*$"),
-    re.compile(r"(?im)^\s*apiVersion:\s*v1\s*$\n\s*kind:\s*Config\s*$"),
-)
-_PLACEHOLDER_PATTERN = re.compile(
-    r"(?i)\b(?:TODO|TBD|REPLACE_ME|CHANGE_ME|NOT_COLLECTED|INSERT_.*?_HERE)\b"
-)
-_SENSITIVE_FILENAME_PATTERN = re.compile(r"(?i)(?:kubeconfig|\.pem$|\.key$|id_rsa)")
 
 
 def repo_score() -> tuple[int, int]:
@@ -226,6 +178,218 @@ def clean_config(config: dict[str, Any]) -> dict[str, Any]:
 def config_sha256(config: dict[str, Any]) -> str:
     rendered = yaml.safe_dump(clean_config(config), sort_keys=True)
     return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+
+
+def implementation_sha256() -> str:
+    """Identify the installed implementation and all deployment resources."""
+    root = project_root()
+    digest = hashlib.sha256()
+    paths: list[tuple[str, Path]] = [
+        (f"src/certweaver/{path.name}", path)
+        for path in Path(__file__).parent.glob("*.py")
+    ]
+    for relative in (
+        "config", "roles", "playbooks", "kubernetes", "docker", "collections", "ansible.cfg",
+    ):
+        path = root / relative
+        if path.is_dir():
+            paths.extend(
+                (item.relative_to(root).as_posix(), item)
+                for item in path.rglob("*") if item.is_file()
+            )
+        elif path.is_file():
+            paths.append((relative, path))
+    for name, path in sorted(paths):
+        digest.update(name.encode("utf-8") + b"\0")
+        digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def evidence_review_template(config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "schemaVersion": 1,
+        "configSha256": config_sha256(config),
+        "implementationSha256": implementation_sha256(),
+        "reviewedBy": "",
+        "reviewedAt": "",
+        "controls": [
+            {"control": item.control, "status": "pending", "observedAt": "", "artifacts": []}
+            for item in REQUIRED_EVIDENCE
+        ],
+    }
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"Duplicate JSON field: {key}")
+        value[key] = item
+    return value
+
+
+def _evidence_timestamp(
+    value: Any, label: str, now: datetime, errors: list[str]
+) -> datetime | None:
+    try:
+        if not isinstance(value, str):
+            raise ValueError("timestamp must be a string")
+        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            raise ValueError("timezone is required")
+        timestamp = timestamp.astimezone(UTC)
+    except (ValueError, OverflowError):
+        errors.append(f"{label} must be an ISO-8601 timestamp with a timezone")
+        return None
+    if timestamp > now + timedelta(minutes=5):
+        errors.append(f"{label} is in the future")
+    if now - timestamp > EVIDENCE_MAX_AGE:
+        errors.append(f"{label} is older than 30 days; repeat the staging checks")
+    return timestamp
+
+
+def _verify_artifact(artifact: Any, root: Path, label: str, errors: list[str]) -> None:
+    if not isinstance(artifact, dict):
+        errors.append(f"{label}: artifact must contain path and sha256")
+        return
+    relative, expected = artifact.get("path"), artifact.get("sha256")
+    if (
+        not isinstance(relative, str)
+        or not relative
+        or "\\" in relative
+        or ":" in relative
+        or "\0" in relative
+    ):
+        errors.append(f"{label}: artifact path must be a relative POSIX path")
+        return
+    posix, windows = PurePosixPath(relative), PureWindowsPath(relative)
+    if posix.is_absolute() or windows.drive or ".." in posix.parts:
+        errors.append(f"{label}: artifact path must stay inside the evidence directory")
+        return
+    if not isinstance(expected, str) or not re.fullmatch(r"[a-fA-F0-9]{64}", expected):
+        errors.append(f"{label}: artifact sha256 must contain 64 hexadecimal characters")
+        return
+    try:
+        path = (root / relative).resolve()
+        if not path.is_relative_to(root) or not path.is_file():
+            errors.append(f"{label}: artifact must be a file inside the evidence directory")
+            return
+        if path.name == "review.json" or not 0 < path.stat().st_size <= EVIDENCE_MAX_BYTES:
+            errors.append(
+                f"{label}: artifact must be nonempty, at most 10 MiB, and not review.json"
+            )
+            return
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except (OSError, RuntimeError, ValueError) as exc:
+        errors.append(f"{label}: unable to read artifact: {exc}")
+        return
+    if actual != expected.lower():
+        errors.append(f"{label}: artifact SHA-256 does not match its reviewed digest")
+
+
+def assess_evidence(
+    config: dict[str, Any], destination: str | Path, *, now: datetime | None = None
+) -> EvidenceAssessment:
+    """Verify review completeness and integrity, not the truth of a human attestation."""
+    score, maximum = repo_score()
+    errors = list(validate_config(config).errors)
+    controls = tuple(item.control for item in REQUIRED_EVIDENCE)
+    if errors:
+        return EvidenceAssessment(0, maximum, tuple(errors), controls)
+    if _get(config, "spec.mode") != "rke2-ha" or _get(config, "spec.environment") != "production":
+        errors.append("The 100-point deployment score requires the production rke2-ha profile")
+    current = now or datetime.now(UTC)
+    if current.tzinfo is None or current.utcoffset() is None:
+        raise ValueError("now must include a timezone")
+    root = Path(destination).resolve()
+    review_path = root / "review.json"
+    try:
+        if (
+            review_path.is_symlink()
+            or not review_path.is_file()
+            or not review_path.resolve().is_relative_to(root)
+        ):
+            raise ValueError("review.json must be a regular file inside the evidence directory")
+        if review_path.stat().st_size > EVIDENCE_MAX_BYTES:
+            raise ValueError("review.json exceeds 10 MiB")
+        review = json.loads(
+            review_path.read_text(encoding="utf-8"), object_pairs_hook=_unique_json_object
+        )
+    except (OSError, ValueError, RuntimeError, RecursionError) as exc:
+        errors.append(f"Unable to read evidence review: {exc}")
+        return EvidenceAssessment(score, maximum, tuple(errors), controls)
+    if not isinstance(review, dict):
+        errors.append("Evidence review must be a JSON object")
+        return EvidenceAssessment(score, maximum, tuple(errors), controls)
+    if type(review.get("schemaVersion")) is not int or review.get("schemaVersion") != 1:
+        errors.append("Evidence review schemaVersion must be 1")
+    if review.get("configSha256") != config_sha256(config):
+        errors.append("Evidence configuration SHA-256 does not match this configuration")
+    if review.get("implementationSha256") != implementation_sha256():
+        errors.append("Evidence implementation SHA-256 does not match this implementation")
+    reviewer = review.get("reviewedBy")
+    if not isinstance(reviewer, str) or len(reviewer.strip()) < 3 or reviewer.strip().lower() in {
+        "todo", "pending", "replace", "operator", "example",
+    }:
+        errors.append("reviewedBy must identify the person responsible for the evidence review")
+    reviewed_at = _evidence_timestamp(review.get("reviewedAt"), "reviewedAt", current, errors)
+    records = review.get("controls")
+    if not isinstance(records, list):
+        errors.append("Evidence controls must be an array")
+        return EvidenceAssessment(score, maximum, tuple(errors), controls)
+    pending = set(controls)
+    seen: set[str] = set()
+    for record in records:
+        if not isinstance(record, dict) or not isinstance(record.get("control"), str):
+            errors.append("Each evidence control must be an object with a control name")
+            continue
+        name = record["control"]
+        if name not in controls or name in seen:
+            errors.append(f"Unknown or duplicate evidence control: {name}")
+            continue
+        seen.add(name)
+        status = record.get("status")
+        if status != "passed":
+            if status not in ("pending", "failed"):
+                errors.append(f"{name}: status must be pending, failed, or passed")
+            continue
+        before = len(errors)
+        observed_at = _evidence_timestamp(
+            record.get("observedAt"), f"{name}: observedAt", current, errors
+        )
+        if observed_at and reviewed_at and observed_at > reviewed_at:
+            errors.append(f"{name}: evidence was observed after its review")
+        artifacts = record.get("artifacts")
+        if not isinstance(artifacts, list) or not artifacts:
+            errors.append(f"{name}: passed controls require at least one reviewed artifact")
+        else:
+            for artifact in artifacts:
+                _verify_artifact(artifact, root, name, errors)
+        if len(errors) == before:
+            pending.remove(name)
+    ordered_pending = tuple(name for name in controls if name in pending)
+    return EvidenceAssessment(
+        maximum if not errors and not ordered_pending else score,
+        maximum, tuple(errors), ordered_pending,
+    )
+
+
+def assessment_markdown(assessment: EvidenceAssessment) -> str:
+    lines = [
+        "# CertWeaver deployment evidence assessment", "",
+        f"Production readiness: **{assessment.score}/{assessment.maximum}**.", "",
+        "Evidence integrity and review completeness: "
+        + ("PASS" if assessment.complete else "PENDING / FAIL"), "",
+        "This validates artifact hashes, freshness, configuration and implementation binding. "
+        "The named human reviewer remains responsible for the truth and sufficiency "
+        "of live evidence.",
+    ]
+    if assessment.errors:
+        lines.extend(["", *[f"- ERROR: {error}" for error in assessment.errors]])
+    if assessment.pending_controls:
+        lines.extend(["", "Outstanding live controls:", ""])
+        lines.extend(f"- {name}" for name in assessment.pending_controls)
+    return "\n".join(lines) + "\n"
 
 
 def config_summary(config: dict[str, Any]) -> dict[str, Any]:
@@ -287,6 +451,8 @@ def score_markdown() -> str:
             "",
             "The remaining points require live staging or production-like evidence.",
             "Run `certweaver evidence` to create the local evidence bundle skeleton.",
+            "After human review, run `certweaver score -c CONFIG --evidence DIRECTORY` "
+            "to assess deployment readiness.",
         ]
     )
     return "\n".join(lines) + "\n"
@@ -298,227 +464,59 @@ def requirements_markdown() -> str:
         "",
         "Keep secrets, tokens, kubeconfigs, and private hostnames out of committed reports.",
         "",
-        (
-            "Each artifact must be non-empty and each `attestation.json` must record a "
-            + "timezone-aware observation, an operator, environment, source, and `status: pass`."
-        ),
-        "",
-        "| Control | Required evidence | Artifacts | Status |",
-        "|---|---|---|---|",
+        "| Control | Required evidence | Status |",
+        "|---|---|---|",
     ]
     for requirement in REQUIRED_EVIDENCE:
-        artifacts = "<br>".join(f"`{artifact}`" for artifact in requirement.artifacts)
-        lines.append(
-            f"| {requirement.control} | {requirement.evidence} | {artifacts} | TODO |"
-        )
+        lines.append(f"| {requirement.control} | {requirement.evidence} | TODO |")
     return "\n".join(lines) + "\n"
 
 
-def _artifact_path(root: Path, relative: str) -> Path | None:
-    candidate = root / relative
-    try:
-        candidate.resolve().relative_to(root.resolve())
-    except ValueError:
-        return None
-    return candidate
-
-
-def _read_evidence_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
-
-
-def _write_text_lf(path: Path, content: str) -> None:
-    with path.open("w", encoding="utf-8", newline="\n") as handle:
-        handle.write(content)
-
-
-def _validate_attestation(path: Path, text: str, errors: list[str]) -> None:
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError:
-        errors.append(f"{path.name}: attestation is not valid JSON")
-        return
-    if not isinstance(value, dict):
-        errors.append(f"{path.name}: attestation must be a JSON object")
-        return
-    if value.get("status") != "pass":
-        errors.append(f"{path.name}: attestation status must be pass")
-    observed_at = value.get("observedAt")
-    if not isinstance(observed_at, str):
-        errors.append(f"{path.name}: attestation observedAt is required")
-    else:
-        try:
-            parsed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
-        except ValueError:
-            parsed = None
-        if parsed is None or parsed.tzinfo is None:
-            errors.append(f"{path.name}: observedAt must be timezone-aware ISO-8601")
-    for key in ("operator", "source", "environment"):
-        if not isinstance(value.get(key), str) or not value[key].strip():
-            errors.append(f"{path.name}: attestation {key} is required")
-
-
-def verify_live_evidence(
-    destination: str | Path, config: dict[str, Any] | None = None
-) -> LiveEvidenceResult:
-    root = Path(destination).resolve()
-    errors: list[str] = []
-    checked: list[str] = []
-    if not root.is_dir():
-        return LiveEvidenceResult(("evidence directory does not exist",), ())
-    if config is None:
-        errors.append("a configuration is required to validate deployment evidence")
-    else:
-        strict_validation = validate_config(config, strict=True)
-        if strict_validation.errors:
-            errors.append("configuration fails strict production validation")
-
-    manifest_path = root / "manifest.json"
-    if not manifest_path.is_file():
-        errors.append("manifest.json: evidence bundle manifest is required")
-    else:
-        try:
-            manifest = json.loads(_read_evidence_text(manifest_path))
-        except json.JSONDecodeError:
-            manifest = None
-            errors.append("manifest.json: evidence bundle manifest is not valid JSON")
-        if isinstance(manifest, dict):
-            score, maximum = repo_score()
-            if manifest.get("repoScore") != score or manifest.get("repoScoreMaximum") != maximum:
-                errors.append("manifest.json: repository score does not match this checkout")
-            if config is not None and manifest.get("configSha256") != config_sha256(config):
-                errors.append("manifest.json: config hash does not match the supplied config")
-            validation = manifest.get("validation", {})
-            if isinstance(validation, dict) and validation.get("errors"):
-                errors.append("manifest.json: configuration validation contains errors")
-            elif not isinstance(validation, dict):
-                errors.append("manifest.json: validation must be a JSON object")
-
-    checked_paths: set[Path] = set()
-    for requirement in REQUIRED_EVIDENCE:
-        for relative in requirement.artifacts:
-            path = _artifact_path(root, relative)
-            if path is None:
-                errors.append(f"{relative}: artifact path escapes evidence directory")
-                continue
-            if path.is_symlink():
-                errors.append(f"{relative}: symlinked evidence artifacts are not accepted")
-                continue
-            if not path.is_file():
-                errors.append(f"{relative}: required evidence artifact is missing")
-                continue
-            checked_paths.add(path)
-            text = _read_evidence_text(path)
-            checked.append(relative)
-            if not text.strip():
-                errors.append(f"{relative}: evidence artifact is empty")
-                continue
-            if any(pattern.search(text) for pattern in _SENSITIVE_EVIDENCE_PATTERNS):
-                errors.append(f"{relative}: sensitive material must be redacted")
-            if _PLACEHOLDER_PATTERN.search(text):
-                errors.append(f"{relative}: placeholder evidence is not accepted")
-            if path.name.endswith("attestation.json"):
-                _validate_attestation(path, text, errors)
-
-    for path in sorted(root.rglob("*")):
-        if not path.is_file() or path in checked_paths:
-            continue
-        relative = path.relative_to(root).as_posix()
-        if path.is_symlink():
-            errors.append(f"{relative}: symlinked evidence artifacts are not accepted")
-            continue
-        if _SENSITIVE_FILENAME_PATTERN.search(path.name):
-            errors.append(f"{relative}: sensitive-looking filenames are not accepted")
-            continue
-        text = _read_evidence_text(path)
-        if any(pattern.search(text) for pattern in _SENSITIVE_EVIDENCE_PATTERNS):
-            errors.append(f"{relative}: sensitive material must be redacted")
-
-    return LiveEvidenceResult(tuple(errors), tuple(checked))
-
-
 def live_checks_script() -> str:
-    return r"""#!/usr/bin/env bash
+    return """#!/usr/bin/env bash
 set -euo pipefail
-
 umask 077
+
 KUBECONFIG="${KUBECONFIG:-/etc/rancher/rke2/rke2.yaml}"
 OUT="${1:-certweaver-live-evidence}"
-mkdir -p "$OUT"
+mkdir "$OUT"
 K=(kubectl --kubeconfig "$KUBECONFIG")
 
-mkdir -p "$OUT/rke2-ha" "$OUT/certificate-issuance" "$OUT/trust-distribution"
-
-"${K[@]}" get nodes -o wide > "$OUT/rke2-ha/nodes.txt"
-"${K[@]}" get --raw=/readyz?verbose > "$OUT/rke2-ha/api-readyz.txt"
-"${K[@]}" get pods --all-namespaces -o wide > "$OUT/rke2-ha/pods.txt"
-"${K[@]}" -n cert-manager get deploy,pod > "$OUT/certificate-issuance/cert-manager.txt"
+date -u +%Y-%m-%dT%H:%M:%SZ > "$OUT/observed-at.txt"
+"${K[@]}" wait --for=condition=Ready nodes --all --timeout=120s
+"${K[@]}" -n cert-manager wait --for=condition=Available deployments --all --timeout=120s
+"${K[@]}" get nodes -o wide > "$OUT/nodes.txt"
+"${K[@]}" get pods --all-namespaces -o wide > "$OUT/pods.txt"
+"${K[@]}" -n cert-manager get deploy,pod > "$OUT/cert-manager.txt"
 "${K[@]}" get certificaterequests.cert-manager.io \
-  --all-namespaces > "$OUT/certificate-issuance/certificate-requests.txt"
+  --all-namespaces > "$OUT/certificate-requests.txt"
 "${K[@]}" get certificaterequestpolicies.policy.cert-manager.io \
-  --all-namespaces > "$OUT/certificate-issuance/approver-policy.txt"
+  --all-namespaces > "$OUT/approver-policy.txt"
 "${K[@]}" get bundles.trust.cert-manager.io \
-  --all-namespaces -o yaml > "$OUT/trust-distribution/bundles.yaml"
+  --all-namespaces -o yaml > "$OUT/trust-bundles.yaml"
 "${K[@]}" get certificates.cert-manager.io \
-  --all-namespaces > "$OUT/certificate-issuance/certificates.txt"
+  --all-namespaces > "$OUT/certificates.txt"
 
-: "${CERTWEAVER_NODES:?Set CERTWEAVER_NODES to three comma-separated SSH targets}"
-IFS=',' read -r -a NODES <<< "$CERTWEAVER_NODES"
-if [[ "${#NODES[@]}" -ne 3 ]]; then
-  echo "CERTWEAVER_NODES must contain exactly three SSH targets" >&2
-  exit 2
-fi
-mkdir -p "$OUT/host-hardening" "$OUT/network-controls"
-: > "$OUT/rke2-ha/rke2-services.txt"
-: > "$OUT/rke2-ha/etcd-members.txt"
-: > "$OUT/host-hardening/selinux.txt"
-: > "$OUT/host-hardening/swap.txt"
-: > "$OUT/host-hardening/chrony.txt"
-: > "$OUT/host-hardening/audit.txt"
-: > "$OUT/network-controls/firewalld.txt"
-for index in "${!NODES[@]}"; do
-  node="${NODES[$index]}"
-  label="node-$((index + 1))"
-  printf '%s\n' "$label" >> "$OUT/rke2-ha/rke2-services.txt"
-  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
-    "sudo -n systemctl is-active rke2-server; sudo -n systemctl is-enabled rke2-server" \
-    >> "$OUT/rke2-ha/rke2-services.txt"
-  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
-    "sudo -n getenforce" >> "$OUT/host-hardening/selinux.txt"
-  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
-    "sudo -n swapon --show" >> "$OUT/host-hardening/swap.txt"
-  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
-    "sudo -n chronyc tracking" >> "$OUT/host-hardening/chrony.txt"
-  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
-    "sudo -n auditctl -s" >> "$OUT/host-hardening/audit.txt"
-  ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$node" \
-    "sudo -n firewall-cmd --list-all" >> "$OUT/network-controls/firewalld.txt"
-done
-
-ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "${NODES[0]}" \
-  "sudo -n env ETCDCTL_API=3 /var/lib/rancher/rke2/bin/etcdctl \
-    --endpoints=https://127.0.0.1:2379 \
-    --cacert=/var/lib/rancher/rke2/server/tls/etcd/server-ca.crt \
-    --cert=/var/lib/rancher/rke2/server/tls/etcd/server-client.crt \
-    --key=/var/lib/rancher/rke2/server/tls/etcd/server-client.key \
-    endpoint health --cluster" > "$OUT/rke2-ha/etcd-members.txt"
-
-cat > "$OUT/manual-evidence.txt" <<'NOTE'
-Collect and redact the remaining disruptive or externally sourced evidence:
-VIP owner before/after failover and API checks, snapshot restore, external scans
-from management and non-management networks, trust-manager target objects,
-approved secret-storage attestation, upgrade rehearsal, and incident readiness.
-Create the exact artifacts listed by required-live-evidence.md, with a
-timezone-aware attestation.json containing status=pass, operator, environment,
-and source.
+cat > "$OUT/manual-node-evidence.txt" <<'NOTE'
+Collect node-local service, SELinux, firewalld, and snapshot evidence separately
+from each RKE2 node.
+These read-only snapshots do not demonstrate failover, restore, or upgrade success.
+Review all required controls and complete review.json separately.
 NOTE
+printf '%s\\n' 'Read-only collection completed; human review and manual staging checks remain.'
 """
 
 
 def write_evidence_bundle(config: dict[str, Any], destination: str | Path) -> list[Path]:
     target = Path(destination)
-    target.mkdir(parents=True, exist_ok=True)
     validation = validate_config(config)
+    validation.require_ok()
+    if target.exists() and (not target.is_dir() or any(target.iterdir())):
+        raise ConfigurationError(
+            f"Evidence destination must be an empty directory: {target}. "
+            "Choose a new output directory to preserve existing evidence."
+        )
+    target.mkdir(parents=True, exist_ok=True, mode=0o700)
     score, maximum = repo_score()
     sha = config_sha256(config)
     generated_at = datetime.now(UTC).replace(microsecond=0).isoformat()
@@ -528,6 +526,7 @@ def write_evidence_bundle(config: dict[str, Any], destination: str | Path) -> li
         "repoScore": score,
         "repoScoreMaximum": maximum,
         "configSha256": sha,
+        "implementationSha256": implementation_sha256(),
         "validation": {
             "errors": validation.errors,
             "warnings": validation.warnings,
@@ -541,7 +540,16 @@ def write_evidence_bundle(config: dict[str, Any], destination: str | Path) -> li
             "# CertWeaver evidence bundle\n\n"
             f"Generated for config SHA-256 `{sha}`.\n\n"
             "This directory is safe to commit only after reviewing and removing "
-            "environment-sensitive details from live evidence files.\n"
+            "environment-sensitive details from live evidence files.\n\n"
+            "Collect staging artifacts for every control listed in required-live-evidence.md. "
+            "Review their content, then complete review.json with your identity, timezone-aware "
+            "reviewedAt and observedAt timestamps, passed statuses, and relative artifact paths "
+            "with SHA-256 digests. Checks expire after 30 days. Regenerate the bundle if the "
+            "configuration or implementation changes.\n\n"
+            "Run `certweaver score -c CONFIG --evidence THIS_DIRECTORY` to check the review. "
+            "The verifier checks integrity and completeness; the named reviewer is responsible "
+            "for verifying that artifacts demonstrate each live control. A generated skeleton "
+            "never earns live-evidence points.\n"
         ),
         "score.md": score_markdown(),
         "required-live-evidence.md": requirements_markdown(),
@@ -552,13 +560,15 @@ def write_evidence_bundle(config: dict[str, Any], destination: str | Path) -> li
         "config-summary.json": json.dumps(config_summary(config), indent=2, sort_keys=True)
         + "\n",
         "manifest.json": json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        "review.json": json.dumps(evidence_review_template(config), indent=2, sort_keys=True)
+        + "\n",
         "live-checks.sh": live_checks_script(),
     }
 
     written: list[Path] = []
     for relative, content in files.items():
         path = target / relative
-        _write_text_lf(path, content)
+        path.write_text(content, encoding="utf-8", newline="\n")
         if path.name.endswith(".sh"):
             path.chmod(0o755)
         written.append(path)
