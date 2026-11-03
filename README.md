@@ -136,6 +136,7 @@ Read [the security model](docs/security-model.md), [firewall matrix](docs/firewa
 ```bash
 certweaver validate -c certweaver.yml
 certweaver matrix
+certweaver staging-init -o .certweaver/staging/assessment-01
 certweaver score
 certweaver evidence -c certweaver.yml -o .certweaver/evidence
 # After collecting and reviewing staging artifacts in the bundle:
@@ -166,13 +167,17 @@ The repository includes unit, schema, YAML, Ansible lint, secret scan, vulnerabi
 For a detailed future enterprise qualification goal, use the
 [100-control enterprise readiness framework](docs/enterprise-production-readiness.md)
 and its [ready-to-copy goal prompt](docs/enterprise-production-readiness-goal.txt).
+Use the [staging inputs and approval checklist](docs/staging-qualification.md)
+to generate a private six-file input package and inspect its configuration,
+inventory, assignments, objectives and execution boundaries without deployment.
 It includes a fixed 100-point catalogue, mandatory release gates, evidence and
 review rules, and a blank assessment/schema. This is a separate rubric from the
 current CLI score; no enterprise score is implied by the existing 97/100 baseline.
 
-The repository baseline is **97/100**. To substantiate **100/100** for a
-production RKE2 deployment, collect and review all ten staging controls and run
-the evidence assessment command above. It returns a failing exit status while
+The legacy repository rubric starts at **97/100**. Its ten-control evidence
+assessment can report 100 under that rubric; enterprise production approval
+requires the separate 100-control framework and authenticated review above.
+The legacy evidence assessment returns a failing exit status while
 evidence is incomplete, stale, changed, or tied to another configuration or
 implementation. See the [scorecard](docs/production-readiness.md) for the review
 format and the limits of automated evidence checking.

@@ -40,7 +40,13 @@ def test_operator_secrets_are_excluded_from_both_distribution_formats(tmp_path: 
         shutil.copyfile(root / relative, destination)
     shutil.copytree(root / "src" / "certweaver", source / "src" / "certweaver")
     marker = uuid.uuid4().hex.encode("ascii")
-    private_names = ["docker/.env", "config/secrets/rke2-token", "examples/configs/secrets/token"]
+    private_names = [
+        "docker/.env",
+        "config/secrets/rke2-token",
+        "examples/configs/secrets/token",
+        ".certweaver/staging/private/staging-inputs.json",
+        ".certweaver/staging/private/assessment.json",
+    ]
     for relative in private_names:
         destination = source / relative
         destination.parent.mkdir(parents=True, exist_ok=True)

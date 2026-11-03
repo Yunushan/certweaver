@@ -7,6 +7,11 @@ framework or that EVD-04 has received independent assurance.
 
 ## Local commands
 
+Prepare the actual staging input package and review requirements with
+[`staging-init` and `staging-check`](staging-qualification.md). These commands
+inspect input completeness and configuration/inventory consistency; they never
+authenticate approvals, authorize execution or award enterprise points.
+
 Create a blank assessment in a restricted working location:
 
 ```sh

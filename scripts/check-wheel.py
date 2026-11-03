@@ -87,6 +87,7 @@ def check_wheel(wheel: Path) -> None:
             ["render-inventory", "-c", str(config), "-o", str(workspace / "inventory.yml")],
             ["evidence", "-c", str(config), "-o", str(workspace / "evidence")],
             ["enterprise-init", "-o", str(workspace / "enterprise-assessment.json")],
+            ["staging-init", "-o", str(workspace / "staging-inputs")],
         ]
         environment = {
             key: value
@@ -122,6 +123,32 @@ def check_wheel(wheel: Path) -> None:
         report = json.loads(enterprise_result.stdout)
         if report["verified_points"] != 0 or len(report["controls"]) != 100 or report["complete"]:
             raise RuntimeError("Installed enterprise evaluator returned an incorrect draft result")
+        staging_result = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-c",
+                bootstrap,
+                "staging-check",
+                str(workspace / "staging-inputs"),
+                "--json",
+            ],
+            cwd=workspace,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if staging_result.returncode != 2:
+            raise RuntimeError("Installed staging checker did not reject blank inputs")
+        staging_report = json.loads(staging_result.stdout)
+        if (
+            staging_report["executionAuthorized"]
+            or staging_report["enterprisePointsAwarded"] != 0
+            or staging_report["controlCount"] != 100
+            or staging_report["inputsComplete"]
+        ):
+            raise RuntimeError("Installed staging checker granted unsupported authority")
         deploy_check = f"""
 import os
 import sys

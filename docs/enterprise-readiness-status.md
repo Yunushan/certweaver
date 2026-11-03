@@ -1,5 +1,17 @@
 # Enterprise readiness execution status — 2026-11-03
 
+**Staging preparation:** The [input and approval handoff](staging-qualification.md)
+now defines the exact operator inputs and pre-execution/final-release review
+sequence. `staging-init` creates a private package containing the assessment,
+schemas, complete control plan and approval-purpose checklist. `staging-check`
+checks all 100 assignments, 24 objectives, eight applicability decisions, access/
+execution/assurance references, and explicit local configuration/inventory
+bindings. Input completeness does not authorize a run or award points. The
+organization-specific authority backend and actual live qualification remain
+required. The latest hosted checkpoint before these additions is `be10233`,
+where all five required checks and Python/package matrices passed; changes
+after that checkpoint require their own verification.
+
 **Draft publication checkpoint, 2026-11-03:** The user approved publishing the
 reviewed candidate to [draft PR #7](https://github.com/Yunushan/certweaver/pull/7)
 and starting hosted CI. Candidate `6244f0f` was published, and its first hosted

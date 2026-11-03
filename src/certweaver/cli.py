@@ -21,6 +21,7 @@ from .readiness import (
 )
 from .registry import load_registry, project_root
 from .render import execution_plan, write_inventory
+from .staging import check_staging, initialize_staging
 
 
 def _config_argument(parser: argparse.ArgumentParser) -> None:
@@ -138,6 +139,23 @@ def command_enterprise_score(args: argparse.Namespace) -> int:
 def command_enterprise_init(args: argparse.Namespace) -> int:
     print(initialize_enterprise(args.output))
     return 0
+
+
+def command_staging_init(args: argparse.Namespace) -> int:
+    print(initialize_staging(args.output))
+    return 0
+
+
+def command_staging_check(args: argparse.Namespace) -> int:
+    report = check_staging(args.directory, config_path=args.config, inventory_path=args.inventory)
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(f"Staging input status: {report['status']}")
+        print("Execution authority: unverified; production remains NOT_APPROVED")
+        for issue in report["issues"]:
+            print(f"{issue['path']}: {issue['reason']}")
+    return 0 if report["inputsComplete"] else 2
 
 
 def _playbook_for_mode(mode: str) -> str:
@@ -287,6 +305,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Export all control decisions"
     )
     enterprise_score.set_defaults(func=command_enterprise_score)
+
+    staging_init = sub.add_parser("staging-init", help="Create a private, unapproved input package")
+    staging_init.add_argument("-o", "--output", required=True)
+    staging_init.set_defaults(func=command_staging_init)
+
+    staging_check = sub.add_parser("staging-check", help="Inspect staging inputs without execution")
+    staging_check.add_argument("directory", help="Directory created by staging-init")
+    staging_check.add_argument("--config", help="Explicit local configuration to validate and bind")
+    staging_check.add_argument("--inventory", help="Explicit rendered local inventory to compare")
+    staging_check.add_argument("--json", action="store_true")
+    staging_check.set_defaults(func=command_staging_check)
 
     doctor = sub.add_parser("doctor", help="Check local prerequisites")
     _config_argument(doctor)
