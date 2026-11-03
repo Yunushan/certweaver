@@ -12,6 +12,19 @@ jobs were still running. One remaining nonblocking unused-assignment warning
 was then removed. These statements are dated observations of those exact
 commits; the current PR head must pass its own required checks.
 
+The subsequent `703b427` hosted sequence exposed a second ownership boundary:
+the privileged snapshot API fixture created a root-private shared tool cache,
+and the runner's later Helm installation was denied. Preparation now creates
+both `.certweaver` and `.certweaver/tools` as private runner-owned directories
+before any privileged fixture. Root-owned tool payloads retain their ownership;
+the runner can install its separately pinned Helm payload in the same cache.
+The workflow contract rejects preparation that omits the shared cache. Both
+failed hosted attempts remain retained rather than counted as successful CI.
+A real pinned-etcd/root then pinned-Helm/unprivileged regression reproduces the
+old denial and passes with the prepared cache, including Helm execution and
+preserved root payload ownership/private permissions. The follow-up's 154
+focused workflow/tool tests pass; its final hosted matrix requires a fresh run.
+
 Fresh local verification of `703b427` passed all **1,128 tests** separately on
 Linux Python 3.11.18/Core 2.19.14 and Python 3.14.4/Core 2.21.5. Each profile
 also passed production Ansible lint, seven playbook syntax checks, Ruff, YAML,

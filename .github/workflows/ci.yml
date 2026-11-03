@@ -22,7 +22,7 @@ jobs:
           cache: pip
       - run: python scripts/install-python-deps.py dev --editable
       - name: Prepare private verification workspace
-        run: install -d -m 0700 .certweaver
+        run: install -d -m 0700 .certweaver .certweaver/tools
       - run: ansible-galaxy collection install -r collections/requirements.yml
       - run: >-
           ruff check src tests scripts/*.py ci/*.py

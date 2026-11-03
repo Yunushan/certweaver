@@ -32,13 +32,13 @@ def github_required_checks_contract(ci: dict, security: dict, codeql: dict) -> l
         or steps[preparation[0]]
         != {
             "name": "Prepare private verification workspace",
-            "run": "install -d -m 0700 .certweaver",
+            "run": "install -d -m 0700 .certweaver .certweaver/tools",
         }
         or not privileged
         or preparation[0] >= min(privileged)
     ):
         errors.append(
-            "Runner-owned private verification root must precede every privileged fixture"
+            "Runner-owned private workspace and tool cache must precede privileged fixtures"
         )
     gate = ci.get("jobs", {}).get("required-ci", {})
     condition = "needs.test.result != 'success' || needs['installed-package'].result != 'success'"
