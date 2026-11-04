@@ -1,45 +1,56 @@
 - name: Install SPIRE on Kubernetes
   when: certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
   block:
-    - name: Require pinned SPIRE chart version
-      ansible.builtin.include_tasks: ../_require_version.yml
+    - name: Acquire verified spire-crds chart
+      ansible.builtin.include_role:
+        name: verified_chart
       vars:
-        certweaver_required_adapter: spire-chart
-        certweaver_required_version: "{{ certweaver_adapter_versions.spire_chart }}"
-
-    - name: Add SPIFFE hardened Helm repository
-      ansible.builtin.command:
-        argv: [helm, repo, add, spiffe, https://spiffe.github.io/helm-charts-hardened, --force-update]
-      register: certweaver_spiffe_repo
-      changed_when: "'has been added' in certweaver_spiffe_repo.stdout"
+        certweaver_chart_key: "spire_crds_chart"
+        certweaver_chart_name: "spire-crds"
+        certweaver_chart_reference: "spire-crds"
+        certweaver_chart_repository: "https://spiffe.github.io/helm-charts-hardened"
+        certweaver_chart_version: "{{ certweaver_adapter_versions.spire_crds_chart }}"
+        certweaver_chart_checksum: "{{ certweaver_adapter_checksums.get('spire_crds_chart', '') }}"
 
     - name: Install SPIRE CRDs
       ansible.builtin.command:
         argv:
-          - helm
+          - "{{ certweaver_chart_helm_executable | default('/usr/local/bin/helm') }}"
           - upgrade
           - --install
           - spire-crds
-          - spiffe/spire-crds
-          - --version
-          - "{{ certweaver_adapter_versions.spire_chart }}"
+          - "{{ certweaver_chart_archive_path }}"
           - --namespace
           - spire-system
           - --create-namespace
           - --wait
+      environment:
+        KUBECONFIG: "{{ certweaver_kubeconfig_path | default('/root/.kube/config') }}"
       register: certweaver_spire_crds
       changed_when: "'has been upgraded' in certweaver_spire_crds.stdout or 'has been installed' in certweaver_spire_crds.stdout"
+      when:
+        - not ansible_check_mode
+        - certweaver_chart_verified | default(false) | bool
+
+    - name: Acquire verified spire chart
+      ansible.builtin.include_role:
+        name: verified_chart
+      vars:
+        certweaver_chart_key: "spire_chart"
+        certweaver_chart_name: "spire"
+        certweaver_chart_reference: "spire"
+        certweaver_chart_repository: "https://spiffe.github.io/helm-charts-hardened"
+        certweaver_chart_version: "{{ certweaver_adapter_versions.spire_chart }}"
+        certweaver_chart_checksum: "{{ certweaver_adapter_checksums.get('spire_chart', '') }}"
 
     - name: Install SPIRE
       ansible.builtin.command:
         argv:
-          - helm
+          - "{{ certweaver_chart_helm_executable | default('/usr/local/bin/helm') }}"
           - upgrade
           - --install
           - spire
-          - spiffe/spire
-          - --version
-          - "{{ certweaver_adapter_versions.spire_chart }}"
+          - "{{ certweaver_chart_archive_path }}"
           - --namespace
           - spire-system
           - --values
@@ -47,8 +58,13 @@
           - --wait
           - --timeout
           - 15m
+      environment:
+        KUBECONFIG: "{{ certweaver_kubeconfig_path | default('/root/.kube/config') }}"
       register: certweaver_spire_helm
       changed_when: "'has been upgraded' in certweaver_spire_helm.stdout or 'has been installed' in certweaver_spire_helm.stdout"
+      when:
+        - not ansible_check_mode
+        - certweaver_chart_verified | default(false) | bool
 
 - name: Explain non-Kubernetes SPIRE requirement
   ansible.builtin.debug:

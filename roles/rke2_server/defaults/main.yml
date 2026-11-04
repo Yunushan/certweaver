@@ -1,8 +1,11 @@
-certweaver_rke2_install_script_url: https://get.rke2.io
+certweaver_rke2_install_script_url: "https://raw.githubusercontent.com/rancher/rke2/{{ certweaver_rke2_version | urlencode }}/install.sh"
 certweaver_rke2_install_script_checksum: ""
 certweaver_rke2_cni: canal
+certweaver_rke2_disable_packaged_ingress: true
 certweaver_rke2_disable_components:
   - rke2-ingress-nginx
+  - rke2-traefik
+  - rke2-traefik-crd
 certweaver_rke2_write_kubeconfig_mode: "0640"
 certweaver_rke2_secrets_encryption: true
 certweaver_rke2_audit_enabled: true

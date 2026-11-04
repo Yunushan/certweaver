@@ -1,0 +1,13 @@
+---
+- name: Acquire verified adapter binary
+  ansible.builtin.include_tasks: _download_verified.yml
+
+- name: Install verified adapter binary
+  ansible.builtin.copy:
+    src: "{{ certweaver_adapter_payload_path }}"
+    dest: "/usr/local/bin/{{ certweaver_download_name }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  when: not ansible_check_mode

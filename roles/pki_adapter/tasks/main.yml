@@ -8,7 +8,7 @@
 
 - name: Resolve adapter architecture
   ansible.builtin.set_fact:
-    certweaver_adapter_arch: "{{ certweaver_adapter_arch_map.get(ansible_architecture, 'amd64') }}"
+    certweaver_adapter_arch: "{{ certweaver_adapter_arch_map.get(ansible_architecture, '') }}"
 
 - name: Validate selected Linux adapters
   ansible.builtin.assert:

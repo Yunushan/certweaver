@@ -1,8 +1,22 @@
+- name: Gate K3s host changes on the observed version transition
+  ansible.builtin.include_role:
+    name: cluster_version
+
+- name: Require running K3s identity before a version-changing installer
+  ansible.builtin.include_role:
+    name: cluster_health
+  vars:
+    certweaver_cluster_health_phase: pre-upgrade
+  when:
+    - certweaver_cluster_version_current | length > 0
+    - certweaver_cluster_version_install_needed | bool
+
 - name: Verify K3s token file
   ansible.builtin.assert:
     that:
       - certweaver_rke2_token_file is not none
       - lookup('ansible.builtin.file', certweaver_rke2_token_file, errors='ignore') | trim | length >= 16
+  no_log: true
 
 - name: Verify K3s installer checksum
   ansible.builtin.assert:
@@ -36,14 +50,17 @@
     group: root
     mode: "0600"
   notify: Restart K3s
+  no_log: true
+  diff: false
 
-- name: Install pinned K3s server
+- name: Install or upgrade pinned K3s server
   ansible.builtin.command: /root/install-k3s.sh
   environment:
     INSTALL_K3S_VERSION: "{{ certweaver_k3s_version }}"
     INSTALL_K3S_EXEC: server
-  args:
-    creates: /usr/local/bin/k3s
+  when: certweaver_cluster_version_install_needed | bool
+  changed_when: true
+  notify: Restart K3s
 
 - name: Enable and start K3s
   ansible.builtin.systemd:
@@ -52,9 +69,18 @@
     state: started
     daemon_reload: true
 
+- name: Apply pending K3s restart before readiness checks
+  ansible.builtin.meta: flush_handlers
+
 - name: Wait for local K3s API
   ansible.builtin.wait_for:
     host: "{{ ansible_host }}"
     port: 6443
     delay: 3
     timeout: 600
+
+- name: Gate K3s reconciliation on authenticated API and exact node readiness
+  ansible.builtin.include_role:
+    name: cluster_health
+  vars:
+    certweaver_cluster_health_phase: post-reconcile

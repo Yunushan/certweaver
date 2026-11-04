@@ -1,0 +1,141 @@
+---
+- name: Validate managed cluster health inputs
+  ansible.builtin.assert:
+    that:
+      - certweaver_mode in ['rke2-ha', 'k3s-ha']
+      - certweaver_cluster_health_phase in ['pre-upgrade', 'post-reconcile']
+      - certweaver_cluster_health_nodes is sequence
+      - certweaver_cluster_health_nodes is not string
+      - certweaver_cluster_health_nodes | length > 0
+      - certweaver_cluster_health_nodes | unique | length == certweaver_cluster_health_nodes | length
+      - certweaver_cluster_health_phase != 'pre-upgrade' or certweaver_cluster_health_nodes == [inventory_hostname]
+      - certweaver_cluster_health_api_port | int > 0
+      - certweaver_cluster_health_api_port | int <= 65535
+      - certweaver_cluster_health_retries | int >= 1
+      - certweaver_cluster_health_retries | int <= 120
+      - certweaver_cluster_health_delay | int >= 0
+      - certweaver_cluster_health_delay | int <= 30
+      - certweaver_cluster_health_request_timeout is match('^[1-9][0-9]?s$')
+    fail_msg: Managed cluster health requires a bounded RKE2/K3s profile and explicit node identities.
+
+- name: Validate Kubernetes node identities before constructing API paths
+  ansible.builtin.assert:
+    that:
+      - item is string
+      - item | length <= 253
+      - item is match('^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$')
+      - "'..' not in item"
+    fail_msg: Managed cluster node identities must be literal Kubernetes DNS names.
+  loop: "{{ certweaver_cluster_health_nodes }}"
+
+- name: Resolve the distribution-specific authenticated client
+  ansible.builtin.set_fact:
+    certweaver_cluster_health_profile: "{{ certweaver_cluster_health_profiles[certweaver_mode] }}"
+    certweaver_cluster_health_version: >-
+      {{ (certweaver_cluster_version_current | default(''))
+         if certweaver_cluster_health_phase == 'pre-upgrade'
+         else (certweaver_rke2_version if certweaver_mode == 'rke2-ha' else certweaver_k3s_version) }}
+
+- name: Bind health to an explicit observed or selected distribution version
+  ansible.builtin.assert:
+    that:
+      - certweaver_cluster_health_version is string
+      - certweaver_cluster_health_version | length <= 100
+      - >-
+        certweaver_cluster_health_version is match(
+        '^v1\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\+' +
+        ('rke2r' if certweaver_mode == 'rke2-ha' else 'k3s') + '[1-9][0-9]*\Z')
+    fail_msg: >-
+      Health requires the exact observed installed version for pre-upgrade
+      or the exact selected distribution version after reconciliation.
+
+- name: Require authenticated local API and node readiness
+  when: not ansible_check_mode
+  block:
+    - name: Read only the selected client context without exporting raw credentials
+      ansible.builtin.command:
+        argv: >-
+          {{ certweaver_cluster_health_profile.argv +
+             ['--kubeconfig=' + certweaver_cluster_health_profile.kubeconfig,
+              'config', 'view', '--minify', '--output=json'] }}
+      register: certweaver_cluster_health_client_config
+      changed_when: false
+      timeout: 30
+      no_log: true
+
+    - name: Require TLS verification and direct local routing in kubeconfig
+      ansible.builtin.assert:
+        that:
+          - (certweaver_cluster_health_client_config.stdout | from_json).get('clusters', []) | length == 1
+          - >-
+            not ((certweaver_cluster_health_client_config.stdout | from_json)
+            ['clusters'][0]['cluster'].get('insecure-skip-tls-verify', false))
+          - >-
+            (certweaver_cluster_health_client_config.stdout | from_json)
+            ['clusters'][0]['cluster'].get('proxy-url', '') | length == 0
+        fail_msg: Local health verification requires TLS validation and no configured proxy.
+      no_log: true
+
+    - name: Wait for the authenticated local API readiness endpoint
+      ansible.builtin.command:
+        argv: >-
+          {{ certweaver_cluster_health_profile.argv +
+             ['--kubeconfig=' + certweaver_cluster_health_profile.kubeconfig,
+              '--server=https://127.0.0.1:' + (certweaver_cluster_health_api_port | string),
+              '--request-timeout=' + certweaver_cluster_health_request_timeout,
+              'get', '--raw=/readyz'] }}
+      register: certweaver_cluster_health_api
+      changed_when: false
+      retries: "{{ certweaver_cluster_health_retries | int }}"
+      delay: "{{ certweaver_cluster_health_delay | int }}"
+      until:
+        - certweaver_cluster_health_api.rc == 0
+        - certweaver_cluster_health_api.stdout | trim == 'ok'
+
+    - name: Wait for the authenticated local API server version to match
+      ansible.builtin.command:
+        argv: >-
+          {{ certweaver_cluster_health_profile.argv +
+             ['--kubeconfig=' + certweaver_cluster_health_profile.kubeconfig,
+              '--server=https://127.0.0.1:' + (certweaver_cluster_health_api_port | string),
+              '--request-timeout=' + certweaver_cluster_health_request_timeout,
+              'get', '--raw=/version'] }}
+      register: certweaver_cluster_health_server_version
+      changed_when: false
+      retries: "{{ certweaver_cluster_health_retries | int }}"
+      delay: "{{ certweaver_cluster_health_delay | int }}"
+      until:
+        - certweaver_cluster_health_server_version.rc == 0
+        - (certweaver_cluster_health_server_version.stdout | from_json) is mapping
+        - >-
+          (certweaver_cluster_health_server_version.stdout | from_json).get('gitVersion') ==
+          certweaver_cluster_health_version
+
+    - name: Wait for each expected node and selected kubelet version
+      ansible.builtin.command:
+        argv: >-
+          {{ certweaver_cluster_health_profile.argv +
+             ['--kubeconfig=' + certweaver_cluster_health_profile.kubeconfig,
+              '--server=https://127.0.0.1:' + (certweaver_cluster_health_api_port | string),
+              '--request-timeout=' + certweaver_cluster_health_request_timeout,
+              'get', '--raw=/api/v1/nodes/' + item] }}
+      loop: "{{ certweaver_cluster_health_nodes }}"
+      register: certweaver_cluster_health_node
+      changed_when: false
+      retries: "{{ certweaver_cluster_health_retries | int }}"
+      delay: "{{ certweaver_cluster_health_delay | int }}"
+      until:
+        - certweaver_cluster_health_node.rc == 0
+        - (certweaver_cluster_health_node.stdout | from_json).get('apiVersion') == 'v1'
+        - (certweaver_cluster_health_node.stdout | from_json).get('kind') == 'Node'
+        - (certweaver_cluster_health_node.stdout | from_json).get('metadata', {}).get('name') == item
+        - (certweaver_cluster_health_node.stdout | from_json).get('metadata', {}).get('deletionTimestamp') is none
+        - >-
+          ((certweaver_cluster_health_node.stdout | from_json).get('status', {}).get('conditions', []) |
+          selectattr('type', 'equalto', 'Ready') | list | length) == 1
+        - >-
+          ((certweaver_cluster_health_node.stdout | from_json).get('status', {}).get('conditions', []) |
+          selectattr('type', 'equalto', 'Ready') | selectattr('status', 'equalto', 'True') | list | length) == 1
+        - >-
+          (certweaver_cluster_health_node.stdout | from_json).get('status', {}).get('nodeInfo', {}).get('kubeletVersion') ==
+          certweaver_cluster_health_version

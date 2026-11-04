@@ -1,0 +1,5 @@
+---
+certweaver_cluster_version_paths:
+  rke2-ha: [/usr/local/bin/rke2, /usr/bin/rke2]
+  k3s-ha: [/usr/local/bin/k3s]
+certweaver_cluster_version_require_installed: false

@@ -8,10 +8,12 @@
       Boulder is provided only for lab/integration testing and must be
       explicitly acknowledged.
 
-- name: Require pinned Boulder Git ref
+
+- name: Require immutable boulder commit before prerequisites
   ansible.builtin.include_tasks: ../_require_version.yml
   vars:
     certweaver_required_adapter: boulder
+    certweaver_require_git_commit: true
     certweaver_required_version: "{{ certweaver_adapter_versions.boulder_ref }}"
 
 - name: Install Boulder source prerequisite
@@ -24,6 +26,7 @@
   register: certweaver_boulder_docker
   changed_when: false
   failed_when: false
+  check_mode: false
 
 - name: Require Docker Engine and Compose plugin for Boulder lab
   ansible.builtin.assert:
@@ -33,19 +36,22 @@
       Install and review Docker Engine plus its Compose plugin before enabling
       the Boulder lab adapter. CertWeaver does not add a third-party Docker repository.
 
-- name: Clone pinned Boulder source
-  ansible.builtin.git:
-    repo: https://github.com/letsencrypt/boulder.git
-    dest: "{{ certweaver_adapter_root }}/boulder"
-    version: "{{ certweaver_adapter_versions.boulder_ref }}"
-    update: false
+- name: Acquire verified boulder Git source
+  ansible.builtin.include_tasks: ../_checkout_verified_git.yml
+  vars:
+    certweaver_git_name: boulder
+    certweaver_git_repository: https://github.com/letsencrypt/boulder.git
+    certweaver_git_commit: "{{ certweaver_adapter_versions.boulder_ref }}"
 
 - name: Start Boulder development environment when requested
-  ansible.builtin.command: docker compose up -d
+  ansible.builtin.command:
+    argv: [docker, compose, --project-name, certweaver-boulder, up, -d]
   args:
-    chdir: "{{ certweaver_adapter_root }}/boulder"
+    chdir: "{{ certweaver_adapter_source_path }}"
   register: certweaver_boulder_compose
   changed_when: >-
     'Started' in certweaver_boulder_compose.stdout or
     'Created' in certweaver_boulder_compose.stdout
-  when: certweaver_adapter_start_services | bool
+  when:
+    - not ansible_check_mode
+    - certweaver_adapter_start_services | bool

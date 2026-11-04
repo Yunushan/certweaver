@@ -3,3 +3,4 @@ certweaver_win_acme_url: ""
 certweaver_win_acme_checksum: ""
 certweaver_windows_adapter_root: C:\ProgramData\CertWeaver
 certweaver_posh_acme_repository: PSGallery
+certweaver_posh_acme_version: ""

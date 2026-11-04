@@ -1,0 +1,4 @@
+---
+certweaver_chart_cache_root: /var/cache/certweaver/charts
+certweaver_chart_helm_executable: /usr/local/bin/helm
+certweaver_chart_repository: ""

@@ -1,12 +1,13 @@
 ---
-# Validated against the cert-manager v1.20.2 chart value schema.
+# Rendered against the cert-manager v1.21.3 chart value schema.
 crds:
   enabled: true
   keep: true
 
 disableAutoApproval: true
 replicaCount: 2
-priorityClassName: system-cluster-critical
+global:
+  priorityClassName: system-cluster-critical
 podDisruptionBudget:
   enabled: true
   minAvailable: 1

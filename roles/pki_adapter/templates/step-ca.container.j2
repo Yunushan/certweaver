@@ -4,7 +4,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Container]
-Image=smallstep/step-ca:{{ certweaver_adapter_versions.step_ca }}
+Image=docker.io/smallstep/step-ca@{{ certweaver_adapter_versions.step_ca_image | lower }}
 ContainerName=certweaver-step-ca
 Volume=/var/lib/step-ca:/home/step:Z
 PublishPort={{ certweaver_adapter_options.get('step-ca', {}).get('port', 9000) }}:9000

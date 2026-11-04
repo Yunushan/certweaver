@@ -1,0 +1,128 @@
+---
+- name: Validate the managed distribution profile
+  ansible.builtin.assert:
+    that:
+      - certweaver_mode in ['rke2-ha', 'k3s-ha']
+    fail_msg: Version transitions require an explicit managed RKE2 or K3s profile.
+
+- name: Resolve the selected distribution identity
+  ansible.builtin.set_fact:
+    certweaver_cluster_version_product: "{{ 'rke2' if certweaver_mode == 'rke2-ha' else 'k3s' }}"
+    certweaver_cluster_version_suffix: "{{ 'rke2r' if certweaver_mode == 'rke2-ha' else 'k3s' }}"
+    certweaver_cluster_version_selected: >-
+      {{ certweaver_rke2_version if certweaver_mode == 'rke2-ha' else certweaver_k3s_version }}
+
+- name: Validate a stable literal distribution version before host mutation
+  ansible.builtin.assert:
+    that:
+      - certweaver_cluster_version_selected is string
+      - certweaver_cluster_version_selected | length <= 100
+      - >-
+        certweaver_cluster_version_selected is match(
+        '^v1\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\+' +
+        certweaver_cluster_version_suffix + '[1-9][0-9]*\Z')
+    fail_msg: Select a literal stable Kubernetes 1.x release with the correct distribution revision.
+
+- name: Inspect every managed distribution binary location without following links
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  loop: "{{ certweaver_cluster_version_paths[certweaver_mode] }}"
+  register: certweaver_cluster_version_candidates
+
+- name: Resolve observed binary locations and reset transition state
+  ansible.builtin.set_fact:
+    certweaver_cluster_version_present: >-
+      {{ certweaver_cluster_version_candidates.results |
+         selectattr('stat.exists', 'equalto', true) | list }}
+    certweaver_cluster_version_current: ""
+    certweaver_cluster_version_install_needed: true
+
+- name: Refuse ambiguous installations or a missing upgrade target
+  ansible.builtin.assert:
+    that:
+      - certweaver_cluster_version_present | length <= 1
+      - >-
+        not (certweaver_cluster_version_require_installed | bool) or
+        certweaver_cluster_version_present | length == 1
+    fail_msg: >-
+      Resolve missing or multiple managed binary locations before upgrading;
+      the upgrade playbook does not bootstrap absent servers.
+
+- name: Qualify the installed version before any configuration or installer changes
+  when: certweaver_cluster_version_present | length == 1
+  block:
+    - name: Require a protected regular executable before running its version command
+      ansible.builtin.assert:
+        that:
+          - certweaver_cluster_version_present[0].stat.isreg | default(false)
+          - not (certweaver_cluster_version_present[0].stat.islnk | default(false))
+          - certweaver_cluster_version_present[0].stat.uid == 0
+          - certweaver_cluster_version_present[0].stat.executable
+          - certweaver_cluster_version_present[0].stat.size > 0
+          - certweaver_cluster_version_present[0].stat.size <= 536870912
+          - certweaver_cluster_version_present[0].stat.mode[-2] not in ['2', '3', '6', '7']
+          - certweaver_cluster_version_present[0].stat.mode[-1] not in ['2', '3', '6', '7']
+        fail_msg: Installed distribution identity must come from a protected root-owned regular executable.
+
+    - name: Read the installed distribution identity without modifying the host
+      ansible.builtin.command:
+        argv:
+          - "{{ certweaver_cluster_version_present[0].item }}"
+          - --version
+      register: certweaver_cluster_version_observation
+      changed_when: false
+      check_mode: false
+      timeout: 30
+
+    - name: Extract exact distribution identities from the version response
+      ansible.builtin.set_fact:
+        certweaver_cluster_version_identities: >-
+          {{ certweaver_cluster_version_observation.stdout |
+             regex_findall('(?m)^' + certweaver_cluster_version_product +
+             ' version (v1\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\+' +
+             certweaver_cluster_version_suffix + '[1-9][0-9]*)(?: \([a-f0-9]+\))?\r?$') }}
+
+    - name: Reject unknown or conflicting installed version responses
+      ansible.builtin.assert:
+        that:
+          - certweaver_cluster_version_observation.stdout | length <= 65536
+          - >-
+            (certweaver_cluster_version_observation.stdout |
+            regex_findall('(?m)^' + certweaver_cluster_version_product + ' version ')) | length == 1
+          - >-
+            (certweaver_cluster_version_observation.stdout_lines | first | default(''))
+            is match('^' + certweaver_cluster_version_product + ' version ')
+          - certweaver_cluster_version_identities | length == 1
+          - certweaver_cluster_version_identities[0] | length <= 100
+        fail_msg: Installed distribution version is unknown or ambiguous; no mutation is permitted.
+
+    - name: Resolve numeric Kubernetes and distribution revision fields
+      ansible.builtin.set_fact:
+        certweaver_cluster_version_current: "{{ certweaver_cluster_version_identities[0] }}"
+        certweaver_cluster_version_current_fields: >-
+          {{ certweaver_cluster_version_identities[0] | regex_replace('^v', '') |
+             regex_replace('\+' + certweaver_cluster_version_suffix, '.') |
+             split('.') | map('int') | list }}
+        certweaver_cluster_version_selected_fields: >-
+          {{ certweaver_cluster_version_selected | regex_replace('^v', '') |
+             regex_replace('\+' + certweaver_cluster_version_suffix, '.') |
+             split('.') | map('int') | list }}
+
+    - name: Reject downgrades and skipped Kubernetes minor versions
+      ansible.builtin.assert:
+        that:
+          - certweaver_cluster_version_selected_fields >= certweaver_cluster_version_current_fields
+          - certweaver_cluster_version_selected_fields[1] <= certweaver_cluster_version_current_fields[1] + 1
+        fail_msg: >-
+          Refusing a downgrade or skipped minor transition from
+          {{ certweaver_cluster_version_current }} to {{ certweaver_cluster_version_selected }}.
+          Use an approved sequential upgrade or a separately qualified recovery procedure.
+
+    - name: Record whether the pinned installer is needed
+      ansible.builtin.set_fact:
+        certweaver_cluster_version_install_needed: >-
+          {{ certweaver_cluster_version_current != certweaver_cluster_version_selected }}

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "status": "GENERATED_PINS_REQUIRE_MAINTAINER_REVIEW",
+  "generatedAt": "2026-11-03T13:08:38.449896+00:00",
+  "excludeNewerThan": "2026-10-27T07:34:45.938941+00:00",
+  "generator": {
+    "version": "uv 0.13.7 (x86_64-unknown-linux-gnu)",
+    "executableSha256": "4b5e59bc557ff2cd70934beb59d0eaa92820702853d49f0066b50aa11a8f0c52"
+  },
+  "resolution": {
+    "universal": true,
+    "minimumPython": "3.11",
+    "index": "https://pypi.org/simple"
+  },
+  "inputs": {
+    "pyproject.toml": "3c8592c134f3c6068362fa69892bbc02e8cfa30596ff698f1d123d5b9a27361e",
+    "ci/python-build.in": "f60929f15203bcf97fd8e20522f51694a9a16c974a8cbc157a741ff2894b008d"
+  },
+  "locks": {
+    "runtime": {
+      "path": "ci/python-runtime.lock",
+      "sha256": "39d1f9f8bca819156f8da95b79cc35a3d237e32000aaaabf4b703bcb639c6997"
+    },
+    "build": {
+      "path": "ci/python-build.lock",
+      "sha256": "82705e89ecfa5859705bdabdf2117e7a556116f7d36603e4edf43a1e433ba087"
+    },
+    "dev": {
+      "path": "ci/python-dev.lock",
+      "sha256": "ef13fdf3e2d85495d20e72fe2d2929d029ca1884f0d1e5cc0abb80d011e3f26d"
+    }
+  }
+}
