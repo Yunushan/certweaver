@@ -20,6 +20,20 @@ def load(path: Path) -> dict:
 def github_required_checks_contract(ci: dict, security: dict, codeql: dict) -> list[str]:
     """Keep the names observed in main protection, with a blocking matrix aggregate."""
     errors = []
+    package = ci.get("jobs", {}).get("installed-package", {})
+    package_steps = package.get("steps", [])
+    checkouts = [
+        step for step in package_steps if step.get("uses", "").startswith("actions/checkout@")
+    ]
+    if (
+        package.get("env")
+        != {"PACKAGE_COMMIT": "${{ github.event.pull_request.head.sha || github.sha }}"}
+        or len(checkouts) != 1
+        or checkouts[0].get("with", {}).get("ref") != "${{ env.PACKAGE_COMMIT }}"
+        or "if" in checkouts[0]
+        or any("PACKAGE_COMMIT" in step.get("env", {}) for step in package_steps)
+    ):
+        errors.append("CI packages must check out the reviewed commit with no step override")
     steps = ci.get("jobs", {}).get("test", {}).get("steps", [])
     preparation = [
         i
@@ -354,7 +368,7 @@ def check_workflows(root: Path) -> list[str]:
     ):
         errors.append("Release build cannot bypass locked Python/build dependencies")
     for steps, variable in (
-        (ci["jobs"]["installed-package"]["steps"], "$GITHUB_SHA"),
+        (ci["jobs"]["installed-package"]["steps"], "$PACKAGE_COMMIT"),
         (build_steps, "$GITHUB_SHA"),
     ):
         positions = []

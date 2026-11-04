@@ -93,6 +93,16 @@ reviewer-approval field is always false.
 
 ## Release and evidence integration
 
+For pull requests, GitHub's installed-package matrix explicitly checks out
+`github.event.pull_request.head.sha` and passes that same identity to the build
+and reproduction commands through `PACKAGE_COMMIT`. Other events use
+`github.sha`. This prevents GitHub's temporary PR merge commit and its timestamp
+from becoming the reviewed candidate's artifact identity. The native test job
+continues to exercise the merge result for integration coverage. Package receipts
+must therefore be checked against the reviewed head separately from the test
+job's integration source. The workflow contract rejects a different checkout,
+commit argument or step-level identity override.
+
 GitHub's installed-package matrix and release build, GitLab's verification and
 package jobs, and `make package` use the exact-source builder and reproduction
 check. The common release qualifier requires matching receipts before scanners

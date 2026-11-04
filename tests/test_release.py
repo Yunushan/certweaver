@@ -214,6 +214,52 @@ def test_release_workflows_obey_dependency_and_privilege_contracts():
 @pytest.mark.parametrize(
     "change",
     [
+        "missing-identity",
+        "merge-ref",
+        "mutable-ref",
+        "conditional-checkout",
+        "step-override",
+        "merge-build",
+        "merge-reproduction",
+        "wrong-fallback",
+    ],
+)
+def test_pr_package_receipts_cannot_silently_use_a_different_commit(tmp_path, change):
+    root = project_root()
+    shutil.copytree(root / ".github", tmp_path / ".github")
+    shutil.copyfile(root / ".gitlab-ci.yml", tmp_path / ".gitlab-ci.yml")
+    (tmp_path / "ci").mkdir()
+    shutil.copyfile(
+        root / "ci/gitlab-consumer-bootstrap.py", tmp_path / "ci/gitlab-consumer-bootstrap.py"
+    )
+    assert workflow_tools["check_workflows"](tmp_path) == []
+    path = tmp_path / ".github/workflows/ci.yml"
+    document = workflow_tools["load"](path)
+    job = document["jobs"]["installed-package"]
+    checkout = next(s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout@"))
+    if change == "missing-identity":
+        del job["env"]
+    elif change in {"merge-ref", "mutable-ref"}:
+        checkout["with"]["ref"] = "${{ github.sha }}" if change == "merge-ref" else "main"
+    elif change == "conditional-checkout":
+        checkout["if"] = "false"
+    elif change == "step-override":
+        job["steps"][-1]["env"] = {"PACKAGE_COMMIT": "main"}
+    elif change == "wrong-fallback":
+        job["env"]["PACKAGE_COMMIT"] = "${{ github.event.pull_request.base.sha || github.sha }}"
+    else:
+        script = (
+            "build-package.py" if change == "merge-build" else "check-package-reproducibility.py"
+        )
+        step = next(s for s in job["steps"] if script in s.get("run", ""))
+        step["run"] = step["run"].replace("$PACKAGE_COMMIT", "$GITHUB_SHA")
+    path.write_text(yaml.safe_dump(document), encoding="utf-8")
+    assert workflow_tools["check_workflows"](tmp_path)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
         "missing",
         "name",
         "test-dependency",

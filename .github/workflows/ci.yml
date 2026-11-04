@@ -55,19 +55,23 @@ jobs:
   installed-package:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      PACKAGE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     strategy:
       fail-fast: false
       matrix:
         python: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.PACKAGE_COMMIT }}
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
       - run: python scripts/install-python-deps.py build
-      - run: python scripts/build-package.py --commit "$GITHUB_SHA"
-      - run: python scripts/check-package-reproducibility.py --commit "$GITHUB_SHA"
+      - run: python scripts/build-package.py --commit "$PACKAGE_COMMIT"
+      - run: python scripts/check-package-reproducibility.py --commit "$PACKAGE_COMMIT"
       - run: python scripts/check-wheel.py dist/*.whl
       - name: Rebuild wheel from source distribution
         run: |
