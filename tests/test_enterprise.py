@@ -218,6 +218,106 @@ def test_complete_logic_fixture_requires_external_authority(tmp_path):
     assert evaluate_enterprise(path, now=NOW).verified_points == 0
 
 
+def control_specific_run_fixture(tmp_path):
+    document = complete_fixture(tmp_path)
+    common = document["evidence"].pop("fixture-evidence")
+    for cid, control in document["controls"].items():
+        ref = f"evidence-{cid}"
+        location = f"{cid.lower()}.txt"
+        raw = f"unit-test-only observation for {cid}\n".encode()
+        (tmp_path / location).write_bytes(raw)
+        document["evidence"][ref] = {
+            **common,
+            "controlIds": [cid],
+            "location": location,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+        }
+        control["evidenceRefs"] = [ref]
+        for criterion in control["criteriaResults"].values():
+            criterion["evidenceRefs"] = [ref]
+    document["verificationRuns"]["fixture-run"]["evidenceRefs"] = list(document["evidence"])
+    return document
+
+
+def test_shared_run_accepts_distinct_control_specific_evidence(tmp_path):
+    document = control_specific_run_fixture(tmp_path)
+    result = evaluate_enterprise(
+        save(tmp_path, document), now=NOW, backend=FixtureAuthority(document)
+    )
+    assert result.complete, result.errors or result.controls[0].limitations
+    assert result.verified_points == 100
+    assert all(control.earned_level == 4 for control in result.controls)
+
+
+@pytest.mark.parametrize("attack", ["missing-coverage", "wrong-control", "criterion-cross-control"])
+def test_shared_run_requires_control_and_criterion_specific_coverage(tmp_path, attack):
+    document = control_specific_run_fixture(tmp_path)
+    if attack == "missing-coverage":
+        document["verificationRuns"]["fixture-run"]["evidenceRefs"].remove("evidence-GOV-01")
+    elif attack == "wrong-control":
+        document["evidence"]["evidence-GOV-01"]["controlIds"] = ["GOV-02"]
+    else:
+        document["controls"]["GOV-01"]["criteriaResults"]["AC-01"]["evidenceRefs"] = [
+            "evidence-GOV-02"
+        ]
+    result = evaluate_enterprise(
+        save(tmp_path, document), now=NOW, backend=FixtureAuthority(document)
+    )
+    assert not result.complete
+    assert result.verified_points == 0
+    control = next(control for control in result.controls if control.control_id == "GOV-01")
+    expected = (
+        "Criterion evidence is absent from control evidence"
+        if attack == "criterion-cross-control"
+        else "Verification run lacks evidence for control: fixture-run/GOV-01"
+    )
+    assert expected in control.limitations
+
+
+@pytest.mark.parametrize("unused_run", [False, True], ids=["shared-run", "unused-run"])
+@pytest.mark.parametrize("attack", ["procedure", "chronology", "content", "unresolved"])
+def test_shared_run_checks_all_evidence_even_for_other_controls(tmp_path, unused_run, attack):
+    document = control_specific_run_fixture(tmp_path)
+    run = document["verificationRuns"]["fixture-run"]
+    if unused_run:
+        document["verificationRuns"]["unused-run"] = {
+            **run,
+            "evidenceRefs": ["evidence-GOV-01", "evidence-GOV-02"],
+        }
+        run["evidenceRefs"].remove("evidence-GOV-02")
+        # GOV-02 retains its own valid run; the malformed record is referenced
+        # only by the otherwise unused run inspected by the integrity sweep.
+        document["evidence"]["valid-GOV-02"] = dict(document["evidence"]["evidence-GOV-02"])
+        run["evidenceRefs"].append("valid-GOV-02")
+        document["controls"]["GOV-02"]["evidenceRefs"] = ["valid-GOV-02"]
+        for criterion in document["controls"]["GOV-02"]["criteriaResults"].values():
+            criterion["evidenceRefs"] = ["valid-GOV-02"]
+        run = document["verificationRuns"]["unused-run"]
+    evidence = document["evidence"]["evidence-GOV-02"]
+    if attack == "procedure":
+        evidence["procedureRef"] = "different-procedure"
+    elif attack == "chronology":
+        evidence["observedAt"] = stamp(-99)
+    elif attack == "content":
+        evidence["sha256"] = "d" * 64
+    else:
+        run["evidenceRefs"].append("unresolved-evidence")
+    result = evaluate_enterprise(
+        save(tmp_path, document), now=NOW, backend=FixtureAuthority(document)
+    )
+    assert not result.complete
+    assert result.production_decision == "NOT_APPROVED"
+    assert result.verified_points == 0
+    ref = "unused-run" if unused_run else "fixture-run"
+    expected = {
+        "procedure": f"Run/evidence procedure or chronology mismatch: {ref}",
+        "chronology": f"Run/evidence procedure or chronology mismatch: {ref}",
+        "content": "Evidence content verification failed: evidence-GOV-02",
+        "unresolved": "Unresolved evidence: unresolved-evidence",
+    }[attack]
+    assert expected in result.errors
+
+
 @pytest.mark.parametrize("level,state", [(1, "DEFINED"), (2, "IMPLEMENTED"), (3, "VERIFIED")])
 def test_cumulative_partial_credit_is_exact_without_approving_release(tmp_path, level, state):
     document = complete_fixture(tmp_path)

@@ -334,7 +334,7 @@ class _Evaluation:
             errors.append(f"Evidence lacks authenticated review: {ref}")
         return errors
 
-    def run(self, ref: str, control_id: str) -> list[str]:
+    def run(self, ref: str, control_id: str | None = None) -> list[str]:
         record = self.doc["verificationRuns"].get(ref)
         if record is None:
             return [f"Unresolved verification run: {ref}"]
@@ -349,15 +349,22 @@ class _Evaluation:
         authorization = self.approval(record["authorizationRef"], f"run:{ref}", scope=True)
         if authorization is None or authorization.approved_at > start:
             errors.append(f"Run lacks prior authenticated authorization: {ref}")
+        covered = False
         for evidence_ref in record["evidenceRefs"]:
-            errors.extend(self.evidence(evidence_ref))
+            evidence_errors = self.evidence(evidence_ref)
+            errors.extend(evidence_errors)
             evidence = self.doc["evidence"].get(evidence_ref)
             if evidence and (
-                control_id not in evidence["controlIds"]
-                or evidence["procedureRef"] != record["procedureRef"]
+                evidence["procedureRef"] != record["procedureRef"]
                 or not start <= _time(evidence["observedAt"]) <= finish
             ):
-                errors.append(f"Run/evidence coverage or chronology mismatch: {ref}")
+                errors.append(f"Run/evidence procedure or chronology mismatch: {ref}")
+            elif evidence and not evidence_errors and control_id in evidence["controlIds"]:
+                covered = True
+        # A run may collect different observations for different controls. Every
+        # observation must remain valid, but only one must cover this control.
+        if control_id is not None and not covered:
+            errors.append(f"Verification run lacks evidence for control: {ref}/{control_id}")
         return errors
 
     def control(self, catalogue: dict, scope_approval: Approval | None) -> ControlDecision:
@@ -576,8 +583,7 @@ def evaluate_enterprise(
         }
         if not covered:
             errors.append(f"Verification run has no resolvable coverage: {ref}")
-        for cid in covered:
-            errors.extend(evaluation.run(ref, cid))
+        errors.extend(evaluation.run(ref))
     for kind in ("findings", "exceptions", "changeImpactReviews", "auditTrail"):
         records = document[kind]
         ids = [r["id"] for r in records]
