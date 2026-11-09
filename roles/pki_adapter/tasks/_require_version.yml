@@ -3,6 +3,17 @@
     that:
       - certweaver_required_version | default('') | length > 0
       - certweaver_required_version != 'latest'
+      - >-
+        not certweaver_require_git_commit | default(false) | bool or
+        certweaver_required_version is match('^[a-f0-9]{40}$')
+      - >-
+        not certweaver_require_image_digest | default(false) | bool or
+        certweaver_required_version is match('^sha256:[a-fA-F0-9]{64}$')
+      - >-
+        not certweaver_require_binary_version | default(false) | bool or
+        certweaver_required_version is match('^[0-9]+[.][0-9]+[.][0-9]+([-+][A-Za-z0-9][A-Za-z0-9.+-]*)?$')
     fail_msg: >-
       Adapter {{ certweaver_required_adapter }} requires an explicit pinned version in
-      certweaver_adapter_versions for repeatable deployment.
+      certweaver_adapter_versions for repeatable deployment. Container images require
+      a reviewed sha256 digest rather than a tag.
+      Git sources require a reviewed full lowercase commit identity.

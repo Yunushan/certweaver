@@ -1,0 +1,94 @@
+- name: Validate the selected container application before host changes
+  ansible.builtin.set_fact:
+    certweaver_container_model: '{{ certweaver_adapter_options.get(item, {}) | certweaver_container_model(item) }}'
+  no_log: true
+- name: Require a readiness probe before starting a server application
+  ansible.builtin.assert:
+    that:
+      - >-
+        not certweaver_adapter_start_services | bool or
+        item in ['acme-sh', 'certbot', 'lego', 'cfssl', 'dehydrated'] or
+        certweaver_container_model.services.values() |
+        selectattr('healthcheck', 'defined') | list | length ==
+        certweaver_container_model.services | length
+    fail_msg: Server container activation requires an explicit application healthcheck.
+- name: Stage the selected container application inputs
+  ansible.builtin.include_tasks: _stage_files.yml
+  vars:
+    certweaver_file_adapter: '{{ item }}'
+- name: Check operator-provided Docker Compose plugin
+  ansible.builtin.command: docker compose version --short
+  changed_when: false
+  check_mode: false
+- name: Create private managed Compose directory
+  ansible.builtin.file:
+    path: /etc/certweaver/containers/{{ item }}
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+- name: Render the validated application definition
+  ansible.builtin.copy:
+    content: '{{ certweaver_container_model | to_nice_yaml }}'
+    dest: /etc/certweaver/containers/{{ item }}/compose.yml
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+- name: Validate the effective Compose application
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - /etc/certweaver/containers/{{ item }}/compose.yml
+      - config
+      - --quiet
+  changed_when: false
+  when: not ansible_check_mode
+  no_log: true
+- name: Acquire the approved application image
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - /etc/certweaver/containers/{{ item }}/compose.yml
+      - pull
+  register: certweaver_container_pull
+  changed_when: '''Downloaded'' in certweaver_container_pull.stderr'
+  when: not ansible_check_mode
+  no_log: true
+- name: Install the container command launcher
+  ansible.builtin.copy:
+    content: |
+      #!/bin/sh
+      set -eu
+      exec docker compose -f '/etc/certweaver/containers/{{ item }}/compose.yml' run --rm --no-deps {{ container_name }} "$@"
+    dest: /usr/local/bin/certweaver-{{ item }}{{ '' if container_name == 'app' else '-' ~ container_name }}
+    owner: root
+    group: root
+    mode: '0750'
+  loop: '{{ certweaver_container_model.services.keys() | list }}'
+  loop_control:
+    loop_var: container_name
+- name: Reconcile the server container only when activation is requested
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - -f
+      - /etc/certweaver/containers/{{ item }}/compose.yml
+      - up
+      - -d
+      - --wait
+      - --wait-timeout
+      - '300'
+  register: certweaver_container_up
+  changed_when: '''Created'' in certweaver_container_up.stderr or ''Recreated'' in certweaver_container_up.stderr or
+    ''Started'' in certweaver_container_up.stderr'
+  when:
+    - not ansible_check_mode
+    - certweaver_adapter_start_services | bool
+    - item not in ['acme-sh', 'certbot', 'lego', 'cfssl', 'dehydrated']
+  no_log: true

@@ -21,11 +21,11 @@ app:
   approveSignerNames:
     - issuers.cert-manager.io/*
     - clusterissuers.cert-manager.io/*
-metrics:
-  service:
-    enabled: true
-  servicemonitor:
-    enabled: false
+  metrics:
+    service:
+      enabled: true
+      servicemonitor:
+        enabled: false
 securityContext:
   runAsNonRoot: true
   seccompProfile:

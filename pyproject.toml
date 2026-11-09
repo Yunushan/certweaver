@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,19 +18,26 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Security :: Cryptography",
   "Topic :: System :: Systems Administration",
 ]
 
 [project.optional-dependencies]
 dev = [
-  "ansible-core>=2.16,<2.20",
+  "ansible-core>=2.19,<2.20; python_version < '3.12'",
+  "ansible-core>=2.21,<2.22; python_version >= '3.12'",
   "ansible-lint>=24.6",
+  "pywinrm>=0.5,<0.6",
   "pytest>=8.2",
   "pytest-cov>=5",
   "ruff>=0.5",
   "yamllint>=1.35",
   "build>=1.2",
+  "setuptools>=77",
+  "wheel>=0.43",
 ]
 
 [project.scripts]
@@ -50,5 +57,5 @@ target-version = "py311"
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
-addopts = "-q --strict-markers --cov=certweaver --cov-report=term-missing --cov-fail-under=80"
+addopts = "-q --strict-markers --cov=certweaver --cov-branch --cov-report=term-missing --cov-report=json:.certweaver/coverage.json --cov-fail-under=85"
 testpaths = ["tests"]

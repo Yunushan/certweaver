@@ -2,7 +2,6 @@
   ansible.builtin.dnf:
     name: epel-release
     state: present
-
 - name: Install Dogtag PKI packages
   ansible.builtin.dnf:
     name:
@@ -10,12 +9,17 @@
       - pki-kra
       - pki-tools
     state: present
-
 - name: Check optional Dogtag pkispawn configuration
   ansible.builtin.stat:
-    path: "{{ certweaver_adapter_options.get('dogtag-pki', {}).get('pkispawnConfig', '/etc/certweaver/dogtag-ca.cfg') }}"
+    path: '{{ certweaver_adapter_options.get(''dogtag-pki'', {}).get(''pkispawnConfig'', ''/etc/certweaver/dogtag-ca.cfg'')
+      }}'
   register: certweaver_dogtag_config
-
+- name: Require reviewed configuration when Dogtag instance creation is requested
+  ansible.builtin.assert:
+    that:
+      - not certweaver_adapter_options.get('dogtag-pki', {}).get('configure', false) | bool or certweaver_dogtag_config.stat.isreg
+        | default(false)
+    fail_msg: Dogtag configuration was requested but its reviewed pkispawn configuration is missing.
 - name: Create Dogtag CA instance from reviewed configuration
   ansible.builtin.command:
     argv:
@@ -23,10 +27,12 @@
       - -s
       - CA
       - -f
-      - "{{ certweaver_adapter_options.get('dogtag-pki', {}).get('pkispawnConfig') }}"
+      - '{{ certweaver_adapter_options.get(''dogtag-pki'', {}).get(''pkispawnConfig'', ''/etc/certweaver/dogtag-ca.cfg'')
+        }}'
   args:
     creates: /etc/pki/pki-tomcat/ca
   no_log: true
   when:
     - certweaver_adapter_options.get('dogtag-pki', {}).get('configure', false) | bool
     - certweaver_dogtag_config.stat.exists
+    - certweaver_adapter_start_services | bool

@@ -1,0 +1,39 @@
+- name: Require a reviewed native OpenBao release
+  ansible.builtin.include_tasks: _require_version.yml
+  vars:
+    certweaver_required_adapter: openbao
+    certweaver_require_binary_version: true
+    certweaver_required_version: '{{ certweaver_adapter_versions.openbao }}'
+- name: Acquire the verified native OpenBao archive
+  ansible.builtin.include_tasks: _download_verified.yml
+  vars:
+    certweaver_download_name: openbao
+    certweaver_download_url: '{{ certweaver_adapter_options.get(''openbao-pki'', {}).get(''binaryUrl'', '''') }}'
+- name: Prepare private native OpenBao extraction directory
+  ansible.builtin.file:
+    path: '{{ certweaver_adapter_payload_directory }}/extracted'
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  when: not ansible_check_mode
+- name: Extract only the reviewed OpenBao executable
+  ansible.builtin.unarchive:
+    src: '{{ certweaver_adapter_payload_path }}'
+    dest: '{{ certweaver_adapter_payload_directory }}/extracted'
+    include:
+      - bao
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0700'
+  when: not ansible_check_mode
+- name: Install the native OpenBao executable
+  ansible.builtin.copy:
+    src: '{{ certweaver_adapter_payload_directory }}/extracted/bao'
+    dest: /usr/local/bin/bao
+    remote_src: true
+    owner: root
+    group: root
+    mode: '0755'
+  when: not ansible_check_mode

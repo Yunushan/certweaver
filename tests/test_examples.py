@@ -26,3 +26,9 @@ def test_every_example_renders_parseable_inventory(tmp_path: Path) -> None:
         rendered = yaml.safe_load(destination.read_text(encoding="utf-8"))
         assert rendered["all"]["vars"]["certweaver_mode"]
         assert rendered["all"]["children"]
+
+
+def test_fresh_cluster_profiles_do_not_require_an_uninstalled_monitoring_operator() -> None:
+    for filename in ("rke2-ha.yml", "k3s-ha.yml"):
+        config = load_config(project_root() / "examples" / "configs" / filename)
+        assert not config["spec"]["addons"]["monitoring"]["prometheusRules"]

@@ -2,21 +2,29 @@
   ansible.builtin.include_tasks: ../_require_version.yml
   vars:
     certweaver_required_adapter: caddy
+    certweaver_require_binary_version: true
     certweaver_required_version: "{{ certweaver_adapter_versions.caddy }}"
 
-- name: Download Caddy archive
-  ansible.builtin.unarchive:
-    src: >-
+- name: Acquire verified Caddy archive
+  ansible.builtin.include_tasks: ../_download_verified.yml
+  vars:
+    certweaver_download_name: caddy
+    certweaver_download_url: >-
       {{ 'https://github.com/caddyserver/caddy/releases/download/v' ~
          certweaver_adapter_versions.caddy ~ '/caddy_' ~
          certweaver_adapter_versions.caddy ~ '_linux_' ~
          certweaver_adapter_arch ~ '.tar.gz' }}
+
+- name: Install verified Caddy archive
+  ansible.builtin.unarchive:
+    src: "{{ certweaver_adapter_payload_path }}"
     dest: /usr/local/bin
     remote_src: true
     include: [caddy]
     owner: root
     group: root
     mode: "0755"
+  when: not ansible_check_mode
 
 - name: Create Caddy service user
   ansible.builtin.user:

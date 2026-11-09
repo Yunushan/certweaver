@@ -1,0 +1,288 @@
+- name: Resolve reviewed Lemur application inputs
+  ansible.builtin.set_fact:
+    certweaver_lemur_options: '{{ certweaver_adapter_options.get(''lemur'', {}) }}'
+- name: Require locked dependencies and application configuration
+  ansible.builtin.assert:
+    that:
+      - certweaver_lemur_options.get('requirementsFile', '') is match('^/[^\n]+$')
+      - certweaver_lemur_options.get('configFile', '') is match('^/[^\n]+$')
+      - certweaver_lemur_options.get('bind', '127.0.0.1:8000') is match('^[A-Za-z0-9.:-]+$')
+      - not certweaver_lemur_options.get('runMigrations', false) | bool or certweaver_lemur_options.get('migrationHost',
+        '') in groups['all']
+    fail_msg: Lemur requires reviewed dependency/config files and an explicit migration host.
+- name: Create separate Lemur build and runtime identities
+  ansible.builtin.user:
+    name: '{{ lemur_user }}'
+    system: true
+    create_home: true
+    shell: /sbin/nologin
+  loop:
+    - lemur-build
+    - lemur
+  loop_control:
+    loop_var: lemur_user
+- name: Permit traversal to separately protected application directories
+  ansible.builtin.file:
+    path: /opt/certweaver
+    state: directory
+    owner: root
+    group: root
+    mode: '0711'
+- name: Create private Lemur configuration directory
+  ansible.builtin.file:
+    path: /etc/certweaver/lemur
+    state: directory
+    owner: root
+    group: lemur
+    mode: '0750'
+- name: Create a separate build dependency directory
+  ansible.builtin.file:
+    path: /opt/certweaver/lemur/locks
+    state: directory
+    owner: root
+    group: lemur-build
+    mode: '0750'
+- name: Install approved hash-locked Python dependency list
+  ansible.builtin.copy:
+    src: '{{ certweaver_lemur_options.requirementsFile }}'
+    dest: /opt/certweaver/lemur/locks/requirements.lock
+    owner: root
+    group: lemur-build
+    mode: '0640'
+  no_log: true
+- name: Install the application dependency lock validator
+  ansible.builtin.copy:
+    src: validate-build-lock.py
+    dest: /opt/certweaver/lemur/locks/validate-build-lock.py
+    owner: root
+    group: root
+    mode: '0755'
+- name: Reject unsafe or incomplete dependency locks before building
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/python3.12
+      - /opt/certweaver/lemur/locks/validate-build-lock.py
+      - /opt/certweaver/lemur/locks/requirements.lock
+  changed_when: false
+- name: Observe dependency lock identity
+  ansible.builtin.stat:
+    path: /opt/certweaver/lemur/locks/requirements.lock
+    checksum_algorithm: sha256
+  register: certweaver_lemur_lock
+- name: Resolve isolated application release path
+  ansible.builtin.set_fact:
+    certweaver_lemur_release: /opt/certweaver/lemur/{{ certweaver_adapter_source_commit }}-{{ certweaver_lemur_lock.stat.checksum
+      }}
+- name: Create root-owned Lemur release parent
+  ansible.builtin.file:
+    path: /opt/certweaver/lemur
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+- name: Create root-controlled source archive directory
+  ansible.builtin.file:
+    path: /opt/certweaver/lemur/archives
+    state: directory
+    owner: root
+    group: lemur-build
+    mode: '0750'
+- name: Observe completed application installation
+  ansible.builtin.stat:
+    path: /etc/certweaver/lemur/{{ certweaver_adapter_source_commit }}-{{ certweaver_lemur_lock.stat.checksum }}.json
+  register: certweaver_lemur_installed
+- name: Build the approved application without modifying the verified source cache
+  when: not certweaver_lemur_installed.stat.exists
+  block:
+    - name: Prepare isolated unprivileged build directory
+      ansible.builtin.file:
+        path: '{{ certweaver_lemur_release }}'
+        state: directory
+        owner: lemur-build
+        group: lemur
+        mode: '0750'
+    - name: Archive only the verified committed source tree
+      ansible.builtin.command:
+        argv:
+          - git
+          - -c
+          - core.hooksPath=/dev/null
+          - -c
+          - core.fsmonitor=false
+          - -C
+          - '{{ certweaver_adapter_source_path }}'
+          - archive
+          - --format=tar
+          - --output=/opt/certweaver/lemur/archives/{{ certweaver_adapter_source_commit }}.tar
+          - '{{ certweaver_adapter_source_commit }}'
+      changed_when: true
+    - name: Allow the build identity to read the source archive
+      ansible.builtin.file:
+        path: /opt/certweaver/lemur/archives/{{ certweaver_adapter_source_commit }}.tar
+        owner: root
+        group: lemur-build
+        mode: '0640'
+    - name: Prepare source extraction directory
+      ansible.builtin.file:
+        path: '{{ certweaver_lemur_release }}/source'
+        state: directory
+        owner: lemur-build
+        group: lemur
+        mode: '0750'
+    - name: Extract as the unprivileged build identity
+      ansible.builtin.unarchive:
+        src: /opt/certweaver/lemur/archives/{{ certweaver_adapter_source_commit }}.tar
+        dest: '{{ certweaver_lemur_release }}/source'
+        remote_src: true
+      become: true
+      become_user: lemur-build
+    - name: Verify the frontend has a committed dependency lock
+      ansible.builtin.stat:
+        path: '{{ certweaver_lemur_release }}/source/package-lock.json'
+      register: certweaver_lemur_npm_lock
+    - name: Refuse an unpinned frontend build
+      ansible.builtin.assert:
+        that:
+          - certweaver_lemur_npm_lock.stat.isreg | default(false)
+          - not certweaver_lemur_npm_lock.stat.islnk | default(false)
+        fail_msg: Selected Lemur source must contain a reviewed package-lock.json.
+    - name: Create a private Python application environment
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3.12
+          - -m
+          - venv
+          - '{{ certweaver_lemur_release }}/venv'
+        creates: '{{ certweaver_lemur_release }}/venv/bin/python'
+      become: true
+      become_user: lemur-build
+    - name: Install only hash-locked Python build and runtime dependencies
+      ansible.builtin.command:
+        argv:
+          - '{{ certweaver_lemur_release }}/venv/bin/python'
+          - -m
+          - pip
+          - --isolated
+          - install
+          - --require-hashes
+          - '--only-binary=:all:'
+          - --index-url=https://pypi.org/simple
+          - -r
+          - /opt/certweaver/lemur/locks/requirements.lock
+      become: true
+      become_user: lemur-build
+      changed_when: true
+      no_log: true
+    - name: Install locked frontend dependencies without lifecycle scripts
+      ansible.builtin.command:
+        argv:
+          - npm
+          - ci
+          - --ignore-scripts
+          - --strict-ssl=true
+          - --audit=false
+          - --fund=false
+        chdir: '{{ certweaver_lemur_release }}/source'
+      become: true
+      become_user: lemur-build
+      changed_when: true
+    - name: Compile and package static application assets
+      ansible.builtin.command:
+        argv:
+          - '{{ certweaver_lemur_release }}/source/node_modules/.bin/gulp'
+          - '{{ build_target }}'
+        chdir: '{{ certweaver_lemur_release }}/source'
+      loop:
+        - build
+        - package
+      loop_control:
+        loop_var: build_target
+      become: true
+      become_user: lemur-build
+      changed_when: true
+    - name: Install the verified application without fetching additional dependencies
+      ansible.builtin.command:
+        argv:
+          - '{{ certweaver_lemur_release }}/venv/bin/python'
+          - -m
+          - pip
+          - --isolated
+          - install
+          - --no-index
+          - --no-deps
+          - --no-build-isolation
+          - '{{ certweaver_lemur_release }}/source'
+      become: true
+      become_user: lemur-build
+      changed_when: true
+    - name: Install the descriptor-based application ownership verifier
+      ansible.builtin.copy:
+        src: freeze-application.py
+        dest: /opt/certweaver/lemur/locks/freeze-application.py
+        owner: root
+        group: root
+        mode: '0755'
+    - name: Freeze the installed application without following build-controlled links
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3.12
+          - /opt/certweaver/lemur/locks/freeze-application.py
+          - '{{ certweaver_lemur_release }}'
+          - lemur
+      changed_when: true
+    - name: Record the completed source and dependency installation
+      ansible.builtin.copy:
+        content: '{{ {''commit'': certweaver_adapter_source_commit, ''requirementsSha256'': certweaver_lemur_lock.stat.checksum}
+          | to_json }}'
+        dest: /etc/certweaver/lemur/{{ certweaver_adapter_source_commit }}-{{ certweaver_lemur_lock.stat.checksum }}.json
+        owner: root
+        group: root
+        mode: '0600'
+- name: Stage reviewed Lemur runtime inputs after the unprivileged build
+  ansible.builtin.include_tasks: _stage_files.yml
+  vars:
+    certweaver_file_adapter: lemur
+    certweaver_file_group: lemur
+- name: Install reviewed Lemur application configuration
+  ansible.builtin.copy:
+    src: '{{ certweaver_lemur_options.configFile }}'
+    dest: /etc/certweaver/lemur/config.py
+    owner: root
+    group: lemur
+    mode: '0640'
+  register: certweaver_lemur_config
+  no_log: true
+- name: Apply reviewed database migrations on the nominated host only
+  ansible.builtin.command:
+    argv:
+      - '{{ certweaver_lemur_release }}/venv/bin/lemur'
+      - --config=/etc/certweaver/lemur/config.py
+      - db
+      - upgrade
+      - --directory
+      - '{{ certweaver_lemur_release }}/source/src/lemur/migrations'
+  become: true
+  become_user: lemur
+  when:
+    - certweaver_lemur_options.get('runMigrations', false) | bool
+    - inventory_hostname == certweaver_lemur_options.get('migrationHost', '')
+  changed_when: true
+  no_log: true
+- name: Install the Lemur web service
+  ansible.builtin.template:
+    src: lemur.service.j2
+    dest: /etc/systemd/system/certweaver-lemur.service
+    owner: root
+    group: root
+    mode: '0644'
+  register: certweaver_lemur_service
+- name: Activate the explicitly requested Lemur web service
+  ansible.builtin.include_tasks: _activate_service.yml
+  vars:
+    certweaver_service_name: certweaver-lemur.service
+    certweaver_service_witness_marker: /etc/certweaver/lemur/activated.json
+    certweaver_service_witness_paths: >-
+      {{ ['/etc/certweaver/lemur/config.py', '/etc/systemd/system/certweaver-lemur.service',
+          certweaver_lemur_release ~ '/venv/bin/lemur'] +
+         (certweaver_lemur_options.get('files', []) | map(attribute='name') |
+          map('regex_replace', '^', '/etc/certweaver/lemur/') | list) }}

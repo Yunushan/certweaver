@@ -2,8 +2,12 @@
   hosts: cluster_bootstrap:pki_linux
   become: true
   gather_facts: true
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
+  serial: 1
   roles:
     - role: cluster_addons
+      when: inventory_hostname == groups['cluster_bootstrap'][0]
       tags: [addons]
     - role: pki_adapter
       tags: [adapters]

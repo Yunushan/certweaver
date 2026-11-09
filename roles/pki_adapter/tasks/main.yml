@@ -1,24 +1,62 @@
+- name: Reject unknown adapters before resolving task paths
+  ansible.builtin.assert:
+    that:
+      - item in ['cert-manager', 'step-ca', 'openbao-pki', 'acme-sh', 'certbot', 'ejbca-community', 'lego', 'dogtag-pki',
+        'freeipa-certmonger', 'cfssl', 'trust-manager', 'cert-manager-csi-driver', 'dehydrated', 'win-acme', 'posh-acme',
+        'spire', 'boulder', 'caddy-auto-https', 'traefik-acme', 'lemur']
+      - item not in ['boulder', 'lemur'] or item in certweaver_allow_risky_adapters | default([])
+      - item != 'boulder' or certweaver_environment != 'production'
+      - >-
+        item != 'ejbca-community' or certweaver_environment != 'production' or
+        certweaver_adapter_options.get(item, {}).get('externalDatabase', false) | bool
+    fail_msg: Unknown adapter or missing required lab/legacy authorization.
+  loop: '{{ certweaver_enabled_adapters | default([]) }}'
 - name: Create CertWeaver adapter root
   ansible.builtin.file:
-    path: "{{ certweaver_adapter_root }}"
+    path: '{{ certweaver_adapter_root }}'
     state: directory
     owner: root
     group: root
-    mode: "0750"
-
+    mode: '0750'
 - name: Resolve adapter architecture
   ansible.builtin.set_fact:
-    certweaver_adapter_arch: "{{ certweaver_adapter_arch_map.get(ansible_architecture, 'amd64') }}"
-
+    certweaver_adapter_arch: '{{ certweaver_adapter_arch_map.get(ansible_architecture, '''') }}'
 - name: Validate selected Linux adapters
   ansible.builtin.assert:
     that:
       - item not in ['win-acme', 'posh-acme']
-    fail_msg: "{{ item }} must be deployed through playbooks/windows.yml."
-  loop: "{{ certweaver_enabled_adapters | default([]) }}"
+    fail_msg: '{{ item }} must be deployed through playbooks/windows.yml.'
+  loop: '{{ certweaver_enabled_adapters | default([]) }}'
+- name: Stage native client and host installer inputs
+  ansible.builtin.include_tasks: _stage_files.yml
+  vars:
+    certweaver_file_adapter: '{{ item }}'
+  loop: '{{ certweaver_enabled_adapters | default([]) | difference([''step-ca'', ''openbao-pki'', ''ejbca-community'',
+    ''spire'', ''lemur'', ''caddy-auto-https'', ''traefik-acme'']) }}'
+  when: certweaver_mode | default('standalone') != 'docker'
+- name: Stage chart and host-container inputs
+  ansible.builtin.include_tasks: _stage_backend_files.yml
 
 - name: Execute selected PKI adapter tasks
-  ansible.builtin.include_tasks: "adapters/{{ item }}.yml"
-  loop: "{{ certweaver_enabled_adapters | default([]) }}"
+  ansible.builtin.include_tasks: adapters/{{ item }}.yml
+  loop: '{{ certweaver_enabled_adapters | default([]) }}'
+  when: certweaver_mode | default('standalone') != 'docker' or item == 'boulder'
   loop_control:
-    label: "{{ item }}"
+    label: '{{ item }}'
+- name: Install container adapters through Docker Compose
+  ansible.builtin.include_tasks: _container.yml
+  loop: '{{ certweaver_enabled_adapters | default([]) }}'
+  when:
+    - certweaver_mode | default('standalone') == 'docker'
+    - item != 'boulder'
+  loop_control:
+    label: '{{ item }}'
+- name: Install native server service assets
+  ansible.builtin.include_tasks: _native_service.yml
+  loop: '{{ certweaver_enabled_adapters | default([]) | intersect([''step-ca'', ''caddy-auto-https'', ''traefik-acme'',
+    ''openbao-pki'']) }}'
+  when:
+    - certweaver_mode | default('standalone') != 'docker'
+    - (item == 'openbao-pki' and certweaver_openbao_mode | default('') == 'standalone') or item == 'caddy-auto-https'
+      or (item == 'traefik-acme' and certweaver_mode in ['standalone', 'raw']) or (item == 'step-ca' and certweaver_step_ca_mode
+      | default('') == 'standalone')

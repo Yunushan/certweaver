@@ -1,0 +1,198 @@
+---
+- name: Require exact chart version and reviewed archive identity
+  ansible.builtin.assert:
+    that:
+      - certweaver_chart_key is match('^[A-Za-z][A-Za-z0-9_-]*$')
+      - certweaver_chart_name is match('^[a-z0-9][a-z0-9-]*$')
+      - certweaver_chart_version is match('^v?[0-9]+[.][0-9]+[.][0-9]+([-+][A-Za-z0-9][A-Za-z0-9.+-]*)?$')
+      - certweaver_chart_checksum is match('^sha256:[a-fA-F0-9]{64}$')
+      - >-
+        (certweaver_chart_reference is match('^oci://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_./-]+$') and
+         certweaver_chart_repository == '') or
+        (certweaver_chart_reference == certweaver_chart_name and
+         certweaver_chart_repository is match('^https://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_./-]*$'))
+    fail_msg: >-
+      Chart acquisition requires a literal release version, approved SHA-256 archive
+      checksum and explicit HTTPS/OCI source.
+
+- name: Resolve private content-addressed chart cache
+  ansible.builtin.set_fact:
+    certweaver_chart_directory: "{{ certweaver_chart_cache_root }}/{{ certweaver_chart_key }}/{{ certweaver_chart_checksum[7:] | lower }}"
+    certweaver_chart_archive_path: >-
+      {{ certweaver_chart_cache_root }}/{{ certweaver_chart_key }}/{{ certweaver_chart_checksum[7:] | lower }}/chart.tgz
+    certweaver_chart_verified: false
+
+- name: Explain unverified chart acquisition in check mode
+  ansible.builtin.debug:
+    msg: "Check mode skips chart acquisition, metadata verification and installation; it grants no archive-verification proof."
+  when: ansible_check_mode
+
+- name: Acquire and verify chart content before use
+  when: not ansible_check_mode
+  environment:
+    HELM_CONFIG_HOME: "{{ certweaver_chart_directory }}/.helm/config"
+    HELM_CACHE_HOME: "{{ certweaver_chart_directory }}/.helm/cache"
+    HELM_DATA_HOME: "{{ certweaver_chart_directory }}/.helm/data"
+    HELM_PLUGINS: "{{ certweaver_chart_directory }}/.helm/plugins"
+    HELM_REGISTRY_CONFIG: "{{ certweaver_chart_directory }}/.helm/config/registry.json"
+    DOCKER_CONFIG: "{{ certweaver_chart_directory }}/.helm/docker"
+    KUBECONFIG: /dev/null
+  block:
+    - name: Inspect cached chart identity without following links
+      ansible.builtin.stat:
+        path: "{{ certweaver_chart_archive_path }}"
+        follow: false
+        get_checksum: false
+      register: certweaver_chart_cached
+
+    - name: Refuse substituted or oversized cached chart
+      ansible.builtin.assert:
+        that:
+          - >-
+            not certweaver_chart_cached.stat.exists or
+            (certweaver_chart_cached.stat.isreg | default(false) and
+             not certweaver_chart_cached.stat.islnk | default(false) and
+             certweaver_chart_cached.stat.uid == 0 and
+             certweaver_chart_cached.stat.size <= 67108864)
+        fail_msg: "Cached chart must be a bounded regular root-owned archive."
+
+    - name: Recheck cached chart bytes
+      ansible.builtin.stat:
+        path: "{{ certweaver_chart_archive_path }}"
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      register: certweaver_chart_cached_digest
+      when: certweaver_chart_cached.stat.exists
+
+    - name: Prepare private chart and Helm state directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ certweaver_chart_directory }}"
+        - "{{ certweaver_chart_directory }}/.helm/config"
+        - "{{ certweaver_chart_directory }}/.helm/cache"
+        - "{{ certweaver_chart_directory }}/.helm/data"
+        - "{{ certweaver_chart_directory }}/.helm/plugins"
+        - "{{ certweaver_chart_directory }}/.helm/docker"
+
+    - name: Isolate chart acquisition from ambient registry credentials
+      ansible.builtin.copy:
+        content: '{"auths":{}}'
+        dest: "{{ item }}"
+        owner: root
+        group: root
+        mode: "0600"
+      loop:
+        - "{{ certweaver_chart_directory }}/.helm/config/registry.json"
+        - "{{ certweaver_chart_directory }}/.helm/docker/config.json"
+
+    - name: Download missing or changed chart into private staging
+      when: >-
+        not certweaver_chart_cached.stat.exists or
+        certweaver_chart_cached_digest.stat.checksum != certweaver_chart_checksum[7:] | lower
+      block:
+        - name: Create private temporary chart acquisition directory
+          ansible.builtin.tempfile:
+            state: directory
+            path: "{{ certweaver_chart_directory }}"
+            prefix: .pull-
+          register: certweaver_chart_staging
+
+        - name: Pull exact chart without extraction or dependency installation
+          ansible.builtin.command:
+            argv: >-
+              {{ [certweaver_chart_helm_executable, 'pull', certweaver_chart_reference,
+                  '--version', certweaver_chart_version, '--destination', certweaver_chart_staging.path] +
+                 (['--repo', certweaver_chart_repository] if certweaver_chart_repository else []) }}
+          register: certweaver_chart_pull
+          changed_when: certweaver_chart_pull.rc == 0
+
+        - name: Find downloaded chart archive without following links
+          ansible.builtin.find:
+            paths: "{{ certweaver_chart_staging.path }}"
+            patterns: '*.tgz'
+            file_type: file
+            recurse: false
+            follow: false
+          register: certweaver_chart_downloaded
+
+        - name: Require one bounded chart payload
+          ansible.builtin.assert:
+            that:
+              - certweaver_chart_downloaded.matched == 1
+              - certweaver_chart_downloaded.files[0].size <= 67108864
+            fail_msg: "Chart download did not produce one bounded archive."
+
+        - name: Verify downloaded chart bytes before parsing
+          ansible.builtin.stat:
+            path: "{{ certweaver_chart_downloaded.files[0].path }}"
+            follow: false
+            get_checksum: true
+            checksum_algorithm: sha256
+          register: certweaver_chart_downloaded_digest
+
+        - name: Reject unapproved chart content
+          ansible.builtin.assert:
+            that:
+              - certweaver_chart_downloaded_digest.stat.isreg | default(false)
+              - not certweaver_chart_downloaded_digest.stat.islnk | default(false)
+              - certweaver_chart_downloaded_digest.stat.checksum == certweaver_chart_checksum[7:] | lower
+            fail_msg: "Downloaded chart checksum differs from the approved archive identity."
+
+        - name: Store approved chart archive atomically
+          ansible.builtin.copy:
+            src: "{{ certweaver_chart_downloaded.files[0].path }}"
+            dest: "{{ certweaver_chart_archive_path }}"
+            remote_src: true
+            owner: root
+            group: root
+            mode: "0600"
+      always:
+        - name: Remove only the owned chart staging directory
+          ansible.builtin.file:
+            path: "{{ certweaver_chart_staging.path }}"
+            state: absent
+          when:
+            - certweaver_chart_staging.path is defined
+            - certweaver_chart_staging.path | dirname == certweaver_chart_directory
+            - certweaver_chart_staging.path | basename is match('^[.]pull-')
+
+    - name: Verify final chart archive bytes before metadata inspection
+      ansible.builtin.stat:
+        path: "{{ certweaver_chart_archive_path }}"
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      register: certweaver_chart_final
+
+    - name: Require intact final chart payload
+      ansible.builtin.assert:
+        that:
+          - certweaver_chart_final.stat.isreg | default(false)
+          - not certweaver_chart_final.stat.islnk | default(false)
+          - certweaver_chart_final.stat.checksum == certweaver_chart_checksum[7:] | lower
+        fail_msg: "Final chart payload identity verification failed."
+
+    - name: Inspect approved local chart metadata without cluster access
+      ansible.builtin.command:
+        argv: ["{{ certweaver_chart_helm_executable }}", show, chart, "{{ certweaver_chart_archive_path }}"]
+      changed_when: false
+      register: certweaver_chart_metadata
+
+    - name: Bind approved chart to requested name and version
+      ansible.builtin.assert:
+        that:
+          - (certweaver_chart_metadata.stdout | from_yaml).name == certweaver_chart_name
+          - >-
+            ((certweaver_chart_metadata.stdout | from_yaml).version | string | regex_replace('^v', '')) ==
+            (certweaver_chart_version | regex_replace('^v', ''))
+        fail_msg: "Approved archive does not match the requested chart name and version."
+
+    - name: Record verified chart payload for the local installation command
+      ansible.builtin.set_fact:
+        certweaver_chart_verified: true

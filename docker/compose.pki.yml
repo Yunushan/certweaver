@@ -2,7 +2,7 @@ name: certweaver-pki
 services:
   step-ca:
     profiles: [step-ca]
-    image: smallstep/step-ca:${STEP_CA_VERSION:?pin STEP_CA_VERSION}
+    image: docker.io/smallstep/step-ca@${STEP_CA_IMAGE_DIGEST:?pin STEP_CA_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["9000:9000"]
     volumes:
@@ -11,7 +11,7 @@ services:
 
   openbao:
     profiles: [openbao]
-    image: openbao/openbao:${OPENBAO_VERSION:?pin OPENBAO_VERSION}
+    image: docker.io/openbao/openbao@${OPENBAO_IMAGE_DIGEST:?pin OPENBAO_IMAGE_DIGEST}
     restart: unless-stopped
     cap_add: [IPC_LOCK]
     ports: ["8200:8200"]
@@ -22,7 +22,7 @@ services:
 
   ejbca:
     profiles: [ejbca]
-    image: keyfactor/ejbca-ce:${EJBCA_VERSION:?pin EJBCA_VERSION}
+    image: docker.io/keyfactor/ejbca-ce@${EJBCA_IMAGE_DIGEST:?pin EJBCA_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["8443:8443"]
     env_file: [./secrets/ejbca.env]
@@ -31,7 +31,7 @@ services:
 
   caddy:
     profiles: [caddy]
-    image: caddy:${CADDY_VERSION:?pin CADDY_VERSION}
+    image: docker.io/library/caddy@${CADDY_IMAGE_DIGEST:?pin CADDY_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     volumes:
@@ -41,7 +41,7 @@ services:
 
   traefik:
     profiles: [traefik]
-    image: traefik:${TRAEFIK_VERSION:?pin TRAEFIK_VERSION}
+    image: docker.io/library/traefik@${TRAEFIK_IMAGE_DIGEST:?pin TRAEFIK_IMAGE_DIGEST}
     restart: unless-stopped
     ports: ["80:80", "443:443"]
     volumes:

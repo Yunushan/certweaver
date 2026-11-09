@@ -1,4 +1,4 @@
-* @REPLACE-WITH-MAINTAINER
-/config/pki-registry.yml @REPLACE-WITH-PKI-MAINTAINER
-/roles/ @REPLACE-WITH-PLATFORM-MAINTAINER
-/kubernetes/ @REPLACE-WITH-PLATFORM-MAINTAINER
+* @Yunushan
+/config/pki-registry.yml @Yunushan
+/roles/ @Yunushan
+/kubernetes/ @Yunushan

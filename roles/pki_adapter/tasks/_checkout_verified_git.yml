@@ -1,0 +1,124 @@
+---
+- name: Require an immutable Git source identity
+  ansible.builtin.assert:
+    that:
+      - certweaver_git_name is match('^[a-z][a-z0-9_-]*$')
+      - certweaver_git_commit is match('^[a-f0-9]{40}$')
+      - certweaver_git_repository is match('^https://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_./-]+[.]git$')
+    fail_msg: "Git adapters require a reviewed full lowercase commit and HTTPS repository without embedded credentials."
+
+- name: Resolve private content-addressed Git checkout paths
+  ansible.builtin.set_fact:
+    certweaver_adapter_source_parent: "{{ certweaver_adapter_cache_root }}/git/{{ certweaver_git_name }}"
+    certweaver_adapter_source_path: "{{ certweaver_adapter_cache_root }}/git/{{ certweaver_git_name }}/{{ certweaver_git_commit }}"
+    certweaver_adapter_source_commit: "{{ certweaver_git_commit }}"
+    certweaver_adapter_source_verified: false
+
+- name: Explain unverified Git acquisition in check mode
+  ansible.builtin.debug:
+    msg: "Check mode skips Git acquisition, payload verification and dependent installation; it establishes no source proof."
+  when: ansible_check_mode
+
+- name: Acquire and verify immutable Git checkout before use
+  when: not ansible_check_mode
+  environment:
+    GIT_CONFIG_NOSYSTEM: "1"
+    GIT_CONFIG_GLOBAL: /dev/null
+    GIT_CONFIG_SYSTEM: /dev/null
+    GIT_CONFIG_COUNT: "4"
+    GIT_CONFIG_KEY_0: core.hooksPath
+    GIT_CONFIG_VALUE_0: /dev/null
+    GIT_CONFIG_KEY_1: core.fsmonitor
+    GIT_CONFIG_VALUE_1: "false"
+    GIT_CONFIG_KEY_2: protocol.file.allow
+    GIT_CONFIG_VALUE_2: never
+    GIT_CONFIG_KEY_3: http.sslVerify
+    GIT_CONFIG_VALUE_3: "true"
+    GIT_TERMINAL_PROMPT: "0"
+  block:
+    - name: Inspect existing Git checkout directory without following links
+      ansible.builtin.stat:
+        path: "{{ certweaver_adapter_source_path }}"
+        follow: false
+      register: certweaver_adapter_source_stat
+
+    - name: Refuse substituted Git checkout directory
+      ansible.builtin.assert:
+        that:
+          - >-
+            not certweaver_adapter_source_stat.stat.exists or
+            (certweaver_adapter_source_stat.stat.isdir | default(false) and
+             not certweaver_adapter_source_stat.stat.islnk | default(false) and
+             certweaver_adapter_source_stat.stat.uid == 0)
+        fail_msg: "Existing Git checkout must be a real root-owned directory."
+
+    - name: Create private Git source parent
+      ansible.builtin.file:
+        path: "{{ certweaver_adapter_source_parent }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Stage checkout verifier from the controller package
+      ansible.builtin.copy:
+        src: verify-git-checkout
+        dest: "{{ certweaver_adapter_source_parent }}/.certweaver-verify-git-checkout.py"
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Stage managed Git launcher with enforced TLS and hook policy
+      ansible.builtin.copy:
+        src: verified-git.sh
+        dest: "{{ certweaver_adapter_source_parent }}/.certweaver-verified-git"
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Reject changed cached source before Git update
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_facts.python.executable | default(ansible_python_interpreter | default('/usr/bin/python3')) }}"
+          - "{{ certweaver_adapter_source_parent }}/.certweaver-verify-git-checkout.py"
+          - "{{ certweaver_adapter_source_path }}"
+          - "{{ certweaver_git_commit }}"
+          - "{{ certweaver_git_repository }}"
+      changed_when: false
+      when: certweaver_adapter_source_stat.stat.exists
+
+    - name: Check out the approved full Git commit without submodule acquisition
+      ansible.builtin.git:
+        executable: "{{ certweaver_adapter_source_parent }}/.certweaver-verified-git"
+        repo: "{{ certweaver_git_repository }}"
+        dest: "{{ certweaver_adapter_source_path }}"
+        version: "{{ certweaver_git_commit }}"
+        update: true
+        force: false
+        recursive: false
+        track_submodules: false
+        umask: "0077"
+      when: not certweaver_adapter_source_stat.stat.exists
+
+    - name: Restrict immutable Git checkout directory
+      ansible.builtin.file:
+        path: "{{ certweaver_adapter_source_path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Verify commit objects and every checkout payload before use
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_facts.python.executable | default(ansible_python_interpreter | default('/usr/bin/python3')) }}"
+          - "{{ certweaver_adapter_source_parent }}/.certweaver-verify-git-checkout.py"
+          - "{{ certweaver_adapter_source_path }}"
+          - "{{ certweaver_git_commit }}"
+          - "{{ certweaver_git_repository }}"
+      changed_when: false
+      register: certweaver_adapter_source_verification
+
+    - name: Record verified Git source for dependent tasks
+      ansible.builtin.set_fact:
+        certweaver_adapter_source_verified: true

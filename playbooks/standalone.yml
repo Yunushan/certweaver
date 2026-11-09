@@ -2,6 +2,9 @@
   hosts: pki_linux
   become: true
   gather_facts: true
+  serial: 1
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
   roles:
     - role: pki_adapter
       tags: [adapters]

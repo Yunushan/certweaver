@@ -1,0 +1,194 @@
+---
+- name: Validate the managed operator API endpoint
+  ansible.builtin.assert:
+    that:
+      - certweaver_mode in ['rke2-ha', 'k3s-ha']
+      - certweaver_vip is string
+      - certweaver_vip is match('^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$')
+      - certweaver_vip.split('.') | map('int') | max <= 255
+      - (certweaver_api_front_port | string) is match('^[1-9][0-9]{0,4}$')
+      - certweaver_api_front_port | int <= 65535
+      - not (lookup('ansible.builtin.config', 'DEFAULT_DEBUG') | bool)
+    fail_msg: Managed operator configuration requires an explicit IPv4 VIP and valid API port.
+
+- name: Configure only the selected managed cluster with TLS validation intact
+  when: not ansible_check_mode
+  no_log: true
+  diff: false
+  block:
+    - name: Reset private staging state for this invocation
+      ansible.builtin.set_fact:
+        certweaver_operator_stage: {}
+        cacheable: false
+
+    - name: Inspect the protected distribution kubeconfig without following links
+      ansible.builtin.stat:
+        path: "{{ certweaver_cluster_kubeconfig_source }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+        get_attributes: false
+      register: certweaver_operator_source
+
+    - name: Require a protected bounded distribution kubeconfig
+      ansible.builtin.assert:
+        that:
+          - certweaver_operator_source.stat.isreg | default(false)
+          - not (certweaver_operator_source.stat.islnk | default(false))
+          - certweaver_operator_source.stat.uid == 0
+          - certweaver_operator_source.stat.gid == 0
+          - certweaver_operator_source.stat.nlink == 1
+          - certweaver_operator_source.stat.mode in ['0600', '0640']
+          - certweaver_operator_source.stat.size > 0
+          - certweaver_operator_source.stat.size <= 1048576
+        fail_msg: Managed operator access requires a protected root-owned distribution kubeconfig.
+
+    - name: Inspect the existing operator destination without following links
+      ansible.builtin.stat:
+        path: "{{ certweaver_kubeconfig_path }}"
+        follow: false
+        get_checksum: false
+        get_mime: false
+        get_attributes: false
+      register: certweaver_operator_destination
+
+    - name: Require an absent or protected regular operator destination
+      ansible.builtin.assert:
+        that:
+          - >-
+            not certweaver_operator_destination.stat.exists or
+            (certweaver_operator_destination.stat.isreg | default(false)) and
+            not (certweaver_operator_destination.stat.islnk | default(false)) and
+            certweaver_operator_destination.stat.uid == 0 and
+            certweaver_operator_destination.stat.nlink == 1 and
+            certweaver_operator_destination.stat.mode == '0600'
+          - >-
+            not certweaver_operator_destination.stat.exists or
+            certweaver_operator_destination.stat.dev != certweaver_operator_source.stat.dev or
+            certweaver_operator_destination.stat.inode != certweaver_operator_source.stat.inode
+        fail_msg: Operator kubeconfig must be a protected regular file distinct from the distribution source.
+
+    - name: Create a private temporary operator staging directory
+      ansible.builtin.tempfile:
+        state: directory
+        prefix: certweaver-operator-
+      register: certweaver_operator_stage
+      changed_when: false
+
+    - name: Copy distribution credentials into private staging
+      ansible.builtin.copy:
+        src: "{{ certweaver_cluster_kubeconfig_source }}"
+        dest: "{{ certweaver_operator_stage.path }}/kubeconfig"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      changed_when: false
+
+    - name: Resolve the exact operator API endpoint
+      ansible.builtin.set_fact:
+        certweaver_operator_api_endpoint: "https://{{ certweaver_vip }}:{{ certweaver_api_front_port }}"
+        cacheable: false
+
+    - name: Inspect the selected operator context without raw credentials
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - "--kubeconfig={{ certweaver_operator_stage.path }}/kubeconfig"
+          - config
+          - view
+          - --minify
+          - --output=json
+      register: certweaver_operator_context_before
+      changed_when: false
+      timeout: 30
+
+    - name: Require one selected TLS-verifying cluster and direct routing
+      ansible.builtin.assert:
+        that:
+          - (certweaver_operator_context_before.stdout | from_json).get('clusters', []) | length == 1
+          - (certweaver_operator_context_before.stdout | from_json)['clusters'][0].name is string
+          - (certweaver_operator_context_before.stdout | from_json)['clusters'][0].name | length > 0
+          - >-
+            not ((certweaver_operator_context_before.stdout | from_json)
+            ['clusters'][0]['cluster'].get('insecure-skip-tls-verify', false))
+          - >-
+            (certweaver_operator_context_before.stdout | from_json)
+            ['clusters'][0]['cluster'].get('proxy-url', '') | length == 0
+        fail_msg: Managed operator access requires a selected cluster, TLS verification and no configured proxy.
+
+    - name: Set the selected cluster API endpoint through the Kubernetes client
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - "--kubeconfig={{ certweaver_operator_stage.path }}/kubeconfig"
+          - config
+          - set-cluster
+          - "{{ (certweaver_operator_context_before.stdout | from_json)['clusters'][0].name }}"
+          - "--server={{ certweaver_operator_api_endpoint }}"
+          - "--tls-server-name={{ certweaver_operator_selected_cluster.get('tls-server-name', '') }}"
+      vars:
+        certweaver_operator_selected_cluster: "{{ (certweaver_operator_context_before.stdout | from_json)['clusters'][0]['cluster'] }}"
+      when: >-
+        (certweaver_operator_context_before.stdout | from_json)
+        ['clusters'][0]['cluster'].get('server', '') != certweaver_operator_api_endpoint
+      changed_when: false
+      timeout: 30
+
+    - name: Inspect the configured operator context without raw credentials
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - "--kubeconfig={{ certweaver_operator_stage.path }}/kubeconfig"
+          - config
+          - view
+          - --minify
+          - --output=json
+      register: certweaver_operator_context_after
+      changed_when: false
+      timeout: 30
+
+    - name: Verify the endpoint and preserve selected trust credentials and context
+      ansible.builtin.assert:
+        that:
+          - >-
+            (certweaver_operator_context_after.stdout | from_json)['clusters'] ==
+            [(certweaver_operator_context_before.stdout | from_json)['clusters'][0] |
+            combine({'cluster': (certweaver_operator_context_before.stdout | from_json)
+            ['clusters'][0]['cluster'] | combine({'server': certweaver_operator_api_endpoint})})]
+          - >-
+            (certweaver_operator_context_after.stdout | from_json).get('users', []) ==
+            (certweaver_operator_context_before.stdout | from_json).get('users', [])
+          - >-
+            (certweaver_operator_context_after.stdout | from_json).get('contexts', []) ==
+            (certweaver_operator_context_before.stdout | from_json).get('contexts', [])
+          - >-
+            (certweaver_operator_context_after.stdout | from_json).get('current-context', '') ==
+            (certweaver_operator_context_before.stdout | from_json).get('current-context', '')
+        fail_msg: Operator endpoint configuration did not preserve selected trust and context.
+
+    - name: Atomically publish the complete managed operator kubeconfig
+      ansible.builtin.copy:
+        src: "{{ certweaver_operator_stage.path }}/kubeconfig"
+        dest: "{{ certweaver_kubeconfig_path }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+        follow: false
+        unsafe_writes: false
+        backup: false
+        force: true
+  always:
+    - name: Remove private operator staging after success or failure
+      ansible.builtin.file:
+        path: "{{ certweaver_operator_stage.path }}"
+        state: absent
+      when: certweaver_operator_stage.path is defined
+      changed_when: false
+
+    - name: Discard inspected operator contexts
+      ansible.builtin.set_fact:
+        certweaver_operator_context_before: {}
+        certweaver_operator_context_after: {}
+        cacheable: false

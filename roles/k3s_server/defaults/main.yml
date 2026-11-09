@@ -1,4 +1,4 @@
-certweaver_k3s_install_script_url: https://get.k3s.io
+certweaver_k3s_install_script_url: "https://raw.githubusercontent.com/k3s-io/k3s/{{ certweaver_k3s_version | urlencode }}/install.sh"
 certweaver_k3s_install_script_checksum: ""
 certweaver_k3s_disable_components:
   - traefik

@@ -244,6 +244,12 @@
             },
             "fetchKubeconfig": {
               "type": "boolean"
+            },
+            "kubeconfigOutput": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 4096,
+              "description": "Private POSIX controller file, absolute or ~/ relative; used only with fetchKubeconfig."
             }
           }
         },
@@ -258,6 +264,13 @@
           },
           "properties": {
             "helmChecksums": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^sha256:[a-fA-F0-9]{64}$"
+              }
+            },
+            "chartChecksums": {
               "type": "object",
               "additionalProperties": {
                 "type": "string",

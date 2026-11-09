@@ -1,0 +1,119 @@
+- name: Acquire the verified EJBCA Community chart
+  ansible.builtin.include_role:
+    name: verified_chart
+  vars:
+    certweaver_chart_key: ejbca_chart
+    certweaver_chart_name: ejbca-ce
+    certweaver_chart_reference: oci://repo.keyfactor.com/charts/ejbca-ce
+    certweaver_chart_repository: ''
+    certweaver_chart_version: '{{ certweaver_adapter_versions.ejbca_chart }}'
+    certweaver_chart_checksum: '{{ certweaver_adapter_checksums.get(''ejbca_chart'', '''') }}'
+- name: Render and install only the verified EJBCA chart
+  when:
+    - not ansible_check_mode
+    - certweaver_chart_verified | bool
+  environment:
+    KUBECONFIG: '{{ certweaver_kubeconfig_path | default(''/root/.kube/config'') }}'
+    HELM_CONFIG_HOME: '{{ certweaver_chart_directory }}/.helm/config'
+    HELM_CACHE_HOME: '{{ certweaver_chart_directory }}/.helm/cache'
+    HELM_DATA_HOME: '{{ certweaver_chart_directory }}/.helm/data'
+    HELM_PLUGINS: '{{ certweaver_chart_directory }}/.helm/plugins'
+  block:
+    - name: Observe the reviewed target values file
+      ansible.builtin.stat:
+        path: '{{ certweaver_adapter_options.get(''ejbca-community'', {}).get(''valuesFile'', ''/etc/certweaver/ejbca-values.yaml'')
+          }}'
+        follow: false
+        checksum_algorithm: sha256
+      register: certweaver_ejbca_values
+      no_log: true
+    - name: Require protected regular application values
+      ansible.builtin.assert:
+        that:
+          - certweaver_ejbca_values.stat.isreg | default(false)
+          - not certweaver_ejbca_values.stat.islnk | default(false)
+          - certweaver_ejbca_values.stat.uid == 0
+          - certweaver_ejbca_values.stat.mode in ['0400', '0600', '0640']
+        fail_msg: EJBCA requires a regular root-owned private values file.
+    - name: Snapshot application values into the private chart cache
+      ansible.builtin.copy:
+        src: '{{ certweaver_ejbca_values.stat.path }}'
+        dest: '{{ certweaver_chart_directory }}/values-{{ certweaver_ejbca_values.stat.checksum }}.yaml'
+        remote_src: true
+        owner: root
+        group: root
+        mode: '0600'
+      no_log: true
+    - name: Recheck the snapshot identity
+      ansible.builtin.stat:
+        path: '{{ certweaver_chart_directory }}/values-{{ certweaver_ejbca_values.stat.checksum }}.yaml'
+        checksum_algorithm: sha256
+      register: certweaver_ejbca_snapshot
+    - name: Reject application values that changed during acquisition
+      ansible.builtin.assert:
+        that:
+          - certweaver_ejbca_snapshot.stat.checksum == certweaver_ejbca_values.stat.checksum
+        fail_msg: EJBCA values changed while preparing installation.
+    - name: Render the exact installation inputs without contacting Kubernetes
+      ansible.builtin.command:
+        argv:
+          - '{{ certweaver_chart_helm_executable | default(''/usr/local/bin/helm'') }}'
+          - template
+          - ejbca
+          - '{{ certweaver_chart_archive_path }}'
+          - --namespace
+          - ejbca
+          - --values
+          - '{{ certweaver_ejbca_snapshot.stat.path }}'
+          - --set-string
+          - image.repository=docker.io/keyfactor/ejbca-ce@sha256
+          - --set-string
+          - image.tag={{ certweaver_adapter_versions.ejbca_image[7:] | lower }}
+      changed_when: false
+      register: certweaver_ejbca_render
+      no_log: true
+    - name: Require the approved image and digest-bound init and sidecar images
+      ansible.builtin.assert:
+        that:
+          - >-
+            certweaver_ejbca_render.stdout |
+            certweaver_verified_manifest_images('docker.io/keyfactor/ejbca-ce@' ~
+            (certweaver_adapter_versions.ejbca_image | lower))
+        fail_msg: EJBCA rendered images do not match the reviewed digest policy.
+      no_log: true
+    - name: Reverify the local EJBCA archive immediately before installation
+      ansible.builtin.include_role:
+        name: verified_chart
+      vars:
+        certweaver_chart_key: ejbca_chart
+        certweaver_chart_name: ejbca-ce
+        certweaver_chart_reference: oci://repo.keyfactor.com/charts/ejbca-ce
+        certweaver_chart_repository: ''
+        certweaver_chart_version: '{{ certweaver_adapter_versions.ejbca_chart }}'
+        certweaver_chart_checksum: '{{ certweaver_adapter_checksums.get(''ejbca_chart'', '''') }}'
+    - name: Install EJBCA from the same verified chart and values
+      ansible.builtin.command:
+        argv:
+          - '{{ certweaver_chart_helm_executable | default(''/usr/local/bin/helm'') }}'
+          - upgrade
+          - --install
+          - ejbca
+          - '{{ certweaver_chart_archive_path }}'
+          - --namespace
+          - ejbca
+          - --create-namespace
+          - --values
+          - '{{ certweaver_ejbca_snapshot.stat.path }}'
+          - --set-string
+          - image.repository=docker.io/keyfactor/ejbca-ce@sha256
+          - --set-string
+          - image.tag={{ certweaver_adapter_versions.ejbca_image[7:] | lower }}
+          - --wait
+          - --timeout
+          - 15m
+      register: certweaver_ejbca_helm
+      changed_when: '''has been upgraded'' in certweaver_ejbca_helm.stdout or ''has been installed'' in certweaver_ejbca_helm.stdout'
+      no_log: true
+      when:
+        - not ansible_check_mode
+        - certweaver_chart_verified | default(false) | bool

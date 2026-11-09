@@ -1,0 +1,212 @@
+#!/usr/bin/env python3
+"""Verify a private checkout's commit, tree objects and actual working files.
+
+Uses only the managed host's Python standard library and Git. No checkout hooks,
+external filters, submodule fetches or application code are executed here.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import stat
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+MAX_FILES = 100000
+MAX_OBJECT = 64 * 1024 * 1024
+MAX_PAYLOAD = 512 * 1024 * 1024
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def object_id(kind, payload):
+    return hashlib.sha1(
+        kind.encode("ascii") + b" " + str(len(payload)).encode("ascii") + b"\0" + payload
+    ).hexdigest()
+
+
+def verify(directory, commit, repository):
+    require(re.fullmatch(r"[a-f0-9]{40}", commit), "A full lowercase SHA-1 commit is required")
+    require(
+        re.fullmatch(r"https://[A-Za-z0-9.-]+(?::[0-9]+)?/[A-Za-z0-9_./-]+[.]git", repository),
+        "An HTTPS Git repository without embedded credentials is required",
+    )
+    root = Path(directory).absolute()
+    require(root.is_dir() and not root.is_symlink(), "Checkout must be a real directory")
+    require(
+        (root / ".git").is_dir() and not (root / ".git").is_symlink(),
+        "Checkout needs a private .git directory",
+    )
+    deadline = time.monotonic() + 180
+    environment = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    environment.update(
+        GIT_CONFIG_NOSYSTEM="1",
+        GIT_CONFIG_GLOBAL=os.devnull,
+        GIT_CONFIG_SYSTEM=os.devnull,
+        GIT_OPTIONAL_LOCKS="0",
+        GIT_TERMINAL_PROMPT="0",
+    )
+
+    def git(*arguments):
+        remaining = deadline - time.monotonic()
+        require(remaining > 0, "Checkout verification exceeded its time budget")
+        result = subprocess.run(
+            [
+                "/usr/bin/git",
+                "--no-replace-objects",
+                "-c",
+                "core.hooksPath=" + os.devnull,
+                "-c",
+                "core.fsmonitor=false",
+                "-C",
+                str(root),
+                *arguments,
+            ],
+            env=environment,
+            capture_output=True,
+            timeout=min(30, remaining),
+            check=False,
+        )
+        require(result.returncode == 0, "Git object/identity inspection failed")
+        require(len(result.stdout) <= MAX_OBJECT, "Git inspection output exceeds its bound")
+        return result.stdout
+
+    require(
+        git("rev-parse", "HEAD").decode("ascii").strip() == commit,
+        "Checkout HEAD differs from the approved commit",
+    )
+    require(
+        git("remote", "get-url", "origin").decode().strip() == repository,
+        "Checkout origin differs from the approved repository",
+    )
+    require(
+        Path(os.fsdecode(git("rev-parse", "--show-toplevel").rstrip(b"\n"))).resolve()
+        == root.resolve(),
+        "Checkout root differs from the expected path",
+    )
+    body = git("cat-file", "commit", commit)
+    require(object_id("commit", body) == commit, "Commit object identity mismatch")
+    first_line = body.split(b"\n", 1)[0]
+    require(
+        re.fullmatch(rb"tree [a-f0-9]{40}", first_line), "Commit lacks a canonical tree identity"
+    )
+    expected_files, expected_directories = {}, {root}
+    pending = [(root, first_line[5:].decode("ascii"))]
+    while pending:
+        parent, identity = pending.pop()
+        tree = git("cat-file", "tree", identity)
+        require(object_id("tree", tree) == identity, "Tree object identity mismatch")
+        offset = 0
+        while offset < len(tree):
+            end = tree.find(b"\0", offset)
+            require(end >= 0 and end + 21 <= len(tree), "Malformed Git tree entry")
+            mode, name = tree[offset:end].split(b" ", 1)
+            require(
+                name not in {b"", b".", b"..", b".git"} and b"/" not in name, "Unsafe Git tree path"
+            )
+            path = parent / os.fsdecode(name)
+            identity = tree[end + 1 : end + 21].hex()
+            offset = end + 21
+            require(
+                path not in expected_files and path not in expected_directories,
+                "Duplicate Git tree path",
+            )
+            if mode == b"40000":
+                expected_directories.add(path)
+                pending.append((path, identity))
+            else:
+                require(
+                    mode in {b"100644", b"100755", b"120000"},
+                    "Submodules and unsupported Git entry modes require separate qualification",
+                )
+                expected_files[path] = (mode, identity)
+            require(
+                len(expected_files) + len(expected_directories) <= MAX_FILES,
+                "Checkout exceeds its entry bound",
+            )
+
+    actual_files, actual_directories = set(), {root}
+    for current, directories, filenames in os.walk(root, followlinks=False):
+        for name in list(directories):
+            path = Path(current) / name
+            if path == root / ".git":
+                directories.remove(name)
+            elif path.is_symlink():
+                actual_files.add(path)
+                directories.remove(name)
+            else:
+                actual_directories.add(path)
+        actual_files.update(Path(current) / name for name in filenames)
+    require(actual_files == set(expected_files), "Checkout has missing, untracked or ignored files")
+    require(actual_directories == expected_directories, "Checkout has missing or extra directories")
+    total = 0
+    for path, (mode, expected) in expected_files.items():
+        info = path.lstat()
+        require(info.st_uid == os.geteuid(), "Checkout payload ownership differs")
+        if mode == b"120000":
+            require(stat.S_ISLNK(info.st_mode), "Git symlink was substituted")
+            target = path.resolve(strict=True)
+            try:
+                relative = target.relative_to(root.resolve())
+            except ValueError as exc:
+                raise ValueError("Checkout symlink escapes its private source tree") from exc
+            require(".git" not in relative.parts, "Checkout symlink targets private Git metadata")
+            payload = os.readlink(os.fsencode(path))
+            require(object_id("blob", payload) == expected, "Checkout symlink content differs")
+            total += len(payload)
+        else:
+            require(stat.S_ISREG(info.st_mode), "Git file was substituted")
+            require(
+                bool(info.st_mode & stat.S_IXUSR) == (mode == b"100755"),
+                "Checkout executable mode differs",
+            )
+            require(info.st_size <= MAX_OBJECT, "Checkout file exceeds its bound")
+            require(total + info.st_size <= MAX_PAYLOAD, "Checkout payload exceeds its total bound")
+            digest = hashlib.sha1(b"blob " + str(info.st_size).encode("ascii") + b"\0")
+            descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+            with os.fdopen(descriptor, "rb") as stream:
+                opened = os.fstat(stream.fileno())
+                require(
+                    (opened.st_dev, opened.st_ino, opened.st_size)
+                    == (info.st_dev, info.st_ino, info.st_size),
+                    "Checkout file changed during inspection",
+                )
+                count = 0
+                while True:
+                    block = stream.read(1024 * 1024)
+                    if not block:
+                        break
+                    count += len(block)
+                    require(count <= info.st_size, "Checkout file grew during inspection")
+                    digest.update(block)
+                require(count == info.st_size, "Checkout file shrank during inspection")
+            require(
+                digest.hexdigest() == expected,
+                "Checkout file bytes differ from the approved Git tree",
+            )
+            total += info.st_size
+        require(total <= MAX_PAYLOAD, "Checkout payload exceeds its total bound")
+    return {
+        "status": "EXACT_GIT_CHECKOUT_VERIFIED_NOT_UPSTREAM_APPROVAL",
+        "commit": commit,
+        "repository": repository,
+        "files": len(expected_files),
+        "payloadBytes": total,
+    }
+
+
+if __name__ == "__main__":
+    try:
+        require(len(sys.argv) == 4, "Expected checkout, commit and repository arguments")
+        print(json.dumps(verify(*sys.argv[1:])))
+    except (OSError, ValueError, UnicodeError, subprocess.SubprocessError) as exc:
+        print("ERROR: " + str(exc), file=sys.stderr)
+        raise SystemExit(2) from exc

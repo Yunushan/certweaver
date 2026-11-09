@@ -1,15 +1,24 @@
 ---
-# Reviewed baseline on 2026-06-24. Re-evaluate against upstream compatibility and security notices.
-rke2: v1.33.12+rke2r2
+# Observed stable-channel baseline on 2026-11-03; not production approval.
+# Review docs/platform-baseline.md before adopting or upgrading an existing cluster.
+rke2: v1.36.5+rke2r1
 rke2InstallerChecksum: sha256:42983c86d1da64a92061d83afb57630cedd69241989f1b0673f3db6c3d92ee6b
-k3s: v1.33.12+k3s1
-k3sInstallerChecksum: sha256:d264d4d43f7c5a27b44de0075513fb22dfb02d0b7cd33ba7a3838cb822f4729c
+k3s: v1.36.5+k3s1
+k3sInstallerChecksum: sha256:46177d4c99440b4c0311b67233823a8e8a2fc09693f6c89af1a7161e152fbfad
 helm: v3.21.2
 helmChecksums:
   amd64: sha256:0a745198de24545d0055cd8414bc8d2ba10363ef5f5d38369ea1b399671cc083
   arm64: sha256:bbd559fc0547f1d96ccbc68fe4f1cb98f01808f36538139e669369066b781267
-certManager: v1.20.2
+certManager: v1.21.3
 approverPolicy: v0.26.0
 trustManager: v0.23.0
 csiDriver: v0.15.0
 traefikChart: 41.0.0
+
+# Chart archive digests observed on 2026-11-03; not independent production approval.
+chartChecksums:
+  certManager: sha256:9ec67938b2981d8b333af61b3fcf53e26b4f6f5deb7ccda3de4ea116bb373a17
+  approverPolicy: sha256:caac7b683cd2bb8f2b3f16320125cb92b68723456eb99209ea60cee7e29ae3f2
+  trustManager: sha256:5faeb8fc29ddd958e86ecece947f974b400b408340e18e9c521b2167cac21c8e
+  csiDriver: sha256:2ef022ee88e703167c4a4c05265469f02ad35a3b492f58716078b2e838eaf550
+  traefik: sha256:2298d71aae3992a26d3317c8582e886e22f25f78386ec3332e76eda970c46796

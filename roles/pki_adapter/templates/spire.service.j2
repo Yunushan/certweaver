@@ -1,0 +1,22 @@
+[Unit]
+Description=CertWeaver SPIRE {{ component }}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ 'spire' if component == 'server' else 'root' }}
+Group={{ 'spire' if component == 'server' else 'root' }}
+ExecStart=/usr/local/bin/spire-{{ component }} run -config /etc/spire/{{ component }}.conf
+Restart=on-failure
+RestartSec=5
+UMask=0077
+StateDirectory=certweaver-spire-{{ component }}
+StateDirectoryMode=0700
+RuntimeDirectory=certweaver-spire-{{ component }}
+RuntimeDirectoryMode={{ '0755' if component == 'agent' else '0750' }}
+NoNewPrivileges=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

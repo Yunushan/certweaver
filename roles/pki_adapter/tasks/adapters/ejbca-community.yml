@@ -2,46 +2,52 @@
   ansible.builtin.include_tasks: ../_require_version.yml
   vars:
     certweaver_required_adapter: ejbca-community-image
-    certweaver_required_version: "{{ certweaver_adapter_versions.ejbca_image }}"
-
+    certweaver_require_image_digest: true
+    certweaver_required_version: '{{ certweaver_adapter_versions.ejbca_image }}'
 - name: Guard EJBCA demo database in production
   ansible.builtin.assert:
     that:
-      - >-
-        certweaver_environment != 'production' or
-        certweaver_adapter_options.get('ejbca-community', {}).get(
+      - |-
+        certweaver_environment != 'production' or certweaver_adapter_options.get('ejbca-community', {}).get(
           'externalDatabase', false
         ) | bool
-    fail_msg: "Production EJBCA requires an explicitly configured external database and reviewed HSM/key design."
-
+    fail_msg: Production EJBCA requires an explicitly configured external database and reviewed HSM/key design.
 - name: Ensure Podman exists for EJBCA
   ansible.builtin.include_tasks: ../_ensure_podman.yml
-
+  when:
+    - certweaver_mode | default('standalone') not in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
 - name: Create EJBCA data directory
   ansible.builtin.file:
     path: /var/lib/ejbca
     state: directory
     owner: root
     group: root
-    mode: "0700"
-
+    mode: '0700'
+  when:
+    - certweaver_mode | default('standalone') not in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
 - name: Render EJBCA Quadlet
   ansible.builtin.template:
     src: ejbca.container.j2
     dest: /etc/containers/systemd/certweaver-ejbca.container
     owner: root
     group: root
-    mode: "0600"
+    mode: '0600'
+  register: certweaver_ejbca_quadlet
   notify: Reload adapter systemd
-
+  when:
+    - certweaver_mode | default('standalone') not in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
 - name: Activate EJBCA Quadlet when explicitly requested
-  when: certweaver_adapter_start_services | bool
+  when:
+    - certweaver_adapter_start_services | bool
+    - certweaver_mode | default('standalone') not in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
   block:
     - name: Reload systemd after EJBCA Quadlet creation
       ansible.builtin.meta: flush_handlers
-
     - name: Enable and start EJBCA container service
       ansible.builtin.systemd:
         name: certweaver-ejbca.service
         enabled: true
-        state: started
+        state: '{{ ''restarted'' if certweaver_ejbca_quadlet.changed else ''started'' }}'
+- name: Install EJBCA Community in Kubernetes
+  ansible.builtin.include_tasks: ../_ejbca_kubernetes.yml
+  when: certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']

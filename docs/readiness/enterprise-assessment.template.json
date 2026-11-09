@@ -1,0 +1,4393 @@
+{
+  "$schema": "enterprise-assessment.schema.json",
+  "schemaVersion": 1,
+  "frameworkId": "certweaver.enterprise.readiness",
+  "frameworkVersion": "1.0.0",
+  "catalogueSha256": "01edeb1c958ac83727b1d1a229300f3e5e2cc5e52b8f0bb33f05ce31e9abb224",
+  "assessmentState": "DRAFT",
+  "subject": {
+    "assessmentId": null,
+    "assuranceClaim": null,
+    "productVersion": null,
+    "gitCommit": null,
+    "workingTreePatchSha256": null,
+    "deploymentProfileId": null,
+    "environmentFingerprint": null,
+    "configSha256": null,
+    "deploymentResourcesSha256": null,
+    "pipelineDefinitionSha256": null,
+    "packagingDefinitionSha256": null,
+    "policyRevision": null,
+    "scopeApprovalRef": null,
+    "selectedAdapters": [],
+    "issuerPaths": [],
+    "targetEnvironments": [],
+    "compatibilityMatrixRefs": [],
+    "trustDomains": [],
+    "tenants": [],
+    "failureDomains": [],
+    "externalDependencyRefs": [],
+    "declaredExclusions": [],
+    "releaseArtifacts": []
+  },
+  "approvedObjectives": {
+    "apiAvailability": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "requestAdmissionDeadline": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "reconciliationSchedulingDeadline": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "eligibleIssuanceLatency": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "consumerCertificateAvailability": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "renewalSafetyByCertificateClass": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "maximumInvalidationDelay": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "vipFailoverBudget": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "componentRecoveryBudget": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "recoveryTimeObjective": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "recoveryPointObjective": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "alertDeliveryDeadline": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "acknowledgementDeadline": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "escalationDeadline": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "managedCertificateEstate": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "sustainedRequestRate": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "renewalBurstModel": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "providerQuotaModel": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "resourceAndHeadroomLimits": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "soakAndLoadDuration": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "operationalObservationWindow": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "maintenanceWindow": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "patchAndRotationDeadlines": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    },
+    "evidenceRetention": {
+      "target": null,
+      "unitAndWindow": null,
+      "measurementRef": null,
+      "ownerApprovalRef": null
+    }
+  },
+  "controls": {
+    "GOV-01": {
+      "controlId": "GOV-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The frozen assessment profile identifies the release commit, artifact digests, named environment, deployment mode, selected adapters and issuer paths, supported platforms, and external dependencies.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Every enterprise-readiness claim maps to an in-scope capability and trust boundary; unverified modes, adapters, and environments are explicitly excluded from that claim.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The profile is approved before scoring; changes to scope, catalogue version, or applicability create a new assessment revision rather than deleting an unsuccessful result.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "GOV-02": {
+      "controlId": "GOV-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The service owner, platform operator, security reviewer, PKI authority, key custodians, recovery authority, and escalation deputy are identified through controlled records.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Critical changes and evidence reviews have defined maker/checker roles; an implementer cannot provide the sole approval for their own key-custody, authorization, recovery, or release claim.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Responsibilities remain operable when the primary maintainer is unavailable.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "GOV-03": {
+      "controlId": "GOV-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Owners approve numeric availability, issuance and renewal latency, certificate-exposure/revocation, recovery-time, recovery-point, and capacity objectives for the named service.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Every objective defines its numerator/denominator or measurement boundaries, observation window, exclusions, target, and responsible owner.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Objectives distinguish request reconciliation, issued-certificate readiness, consumer delivery, and the certificate actually served by a relying application.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "GOV-04": {
+      "controlId": "GOV-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The release defines supported controller Python/Ansible combinations, host operating systems and architectures, Kubernetes distributions/versions, charts, and adapters.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Each dependency has an upstream support/lifecycle status, maintenance owner, and upgrade/deprecation decision; community support is not represented as a vendor support contract.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Unsupported or unqualified combinations are rejected or visibly excluded from enterprise support claims.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "GOV-05": {
+      "controlId": "GOV-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A versioned threat model and asset/data-flow inventory cover the privileged operator workstation and CI, hosts and cluster, CA/signing boundary, tenants, external dependencies, protected data, abuse paths, and approved retention/residency constraints; material risks have accountable owners.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Material architecture, security-policy, dependency, credential, and operational changes have defined risk classes, approval authorities, and requalification triggers.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Every exception records the unmet criterion, consequence, compensating measures, owner, approver, expiry, and remediation plan.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-04": {
+          "criterion": "An exception or risk acceptance cannot change a control's earned credit, suppress a failed gate, or convert the assessment into 100/100.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "GOV-06": {
+      "controlId": "GOV-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Named teams own maintenance, incident response, dependency updates, release operation, capacity, and end-of-support decisions for the service's planned lifetime.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "The operating model specifies escalation hours, response expectations, handover, training, and minimum available operating capacity.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "A maintainer handover or absence exercise demonstrates access to the necessary procedures and controlled systems.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-01": {
+      "controlId": "CFG-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "All in-scope configuration fields have defined types, constraints, defaults, and cross-field invariants; unsupported values cannot silently select a different behavior.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Malformed structures, unsafe combinations, contradictory ACME ownership, invalid HA topology, missing production pins, and unsupported managed features fail with nonzero status and actionable diagnostics.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Rejected input is not partially rendered or applied in a manner that could be mistaken for a valid deployment.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-02": {
+      "controlId": "CFG-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The plan identifies the intended hosts, environment, roles, selected adapters, versions, security prerequisites, and expected mutations for the frozen configuration.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Check mode documents operations it cannot simulate and never reports those operations as successfully verified.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The executed staging changes match the approved plan or stop for a recorded plan deviation.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-03": {
+      "controlId": "CFG-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A second apply of an unchanged desired state causes no unintended changes, certificate reissuance, private-key churn, service restart, or resource recreation.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Deliberately introduced supported drift is detected and converges to the declared state with only expected changes.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Any unavoidable nonzero change reporting is bounded, explained, and cannot conceal a functional side effect.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-04": {
+      "controlId": "CFG-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Preflight checks cover supported controller/host versions and architecture, required collections/tools, target identity, credentials, approved host policy, required connectivity, and declared capacity.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Missing or invalid prerequisites fail before avoidable privileged mutation and identify the responsible operator action without exposing secret values.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "An unexecuted or deferred prerequisite is reported as unknown/pending rather than OK.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-05": {
+      "controlId": "CFG-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Secret inputs, generated configuration, inventory, temporary files, diagnostic output, and evidence exports follow approved confidentiality and minimum-permission rules.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Path resolution, symlinks, traversal, permissions, file replacement, cleanup, and error handling cannot disclose or overwrite unauthorized material.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Verbose output, Ansible diffs, failed tasks, logs, and generated release artifacts contain no seeded secret sentinel.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-06": {
+      "controlId": "CFG-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Each deployment phase defines failure status, timeout, retry/resume behavior, cleanup, and rollback or forward-recovery boundary.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Interrupted bootstrap, node join, chart reconciliation, and adapter installation leave an identifiable recoverable state without uncontrolled repeated mutation.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Handlers and restarts complete before dependent health checks, and failed health checks stop subsequent unsafe phases.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-07": {
+      "controlId": "CFG-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Host identities, bootstrap/join groups, load-balancer ownership, privilege escalation, tags, and limits match the frozen approved deployment scope.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Duplicate identities, conflicting addresses/ports, empty or unintended target groups, and unsupported placement fail before application.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Operator targeting options cannot silently expand the deployment to unrelated hosts or environments.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "CFG-08": {
+      "controlId": "CFG-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "An installed wheel/source distribution resolves its schema, registry, roles, playbooks, templates, and examples from outside the source checkout.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Configuration-relative file paths, module/package versions, diagnostics, and documented exit codes behave consistently across declared controller platforms.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Missing installed resources produce an explicit failure rather than fallback to unrelated working-directory assets or an apparent successful plan.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-01": {
+      "controlId": "PKI-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The PKI owner approves root and intermediate hierarchy, issuer responsibilities, trust domains, allowed certificate uses, maximum validity, and production/non-production separation.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Every enabled production issuer and selected adapter maps to the approved trust model; no undocumented issuer or cross-environment trust dependency remains.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-02": {
+      "controlId": "PKI-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Signing keys remain inside the approved storage and access boundary, with explicit exportability, backup, recovery, and compromise controls.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "An HSM/KMS is mandatory only when the approved custody profile requires one; that integration must be exercised, not merely named in a design.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Required quorum or dual control is enforced for privileged signing-key operations and emergency recovery.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-03": {
+      "controlId": "PKI-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Actual issuance enforces approved algorithms, key sizes, SAN types, usages, EKUs, CA constraints, validity limits, and chain structure.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Requested and issued attributes are both inspected; the selected issuer does not silently weaken the approved profile.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-04": {
+      "controlId": "PKI-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Production issuance requires an approved requester-to-policy and requester-to-issuer authorization path.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Automatic approval cannot bypass the intended policy controller; sample bootstrap policies do not authorize general workload issuance unintentionally.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-05": {
+      "controlId": "PKI-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A representative production client obtains a certificate through the approved issuer and receives the expected complete chain.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "The actual application presents the certificate successfully to a representative relying party with chain, identity, and validity verification enabled.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "A resource condition reporting Ready alone does not satisfy the control.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-06": {
+      "controlId": "PKI-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Unauthorized identities, wrong issuers, cross-tenant names, forbidden names/usages, excessive validity, and unauthorized CA-signing requests are rejected or remain safely unapproved.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "No rejected request produces a usable certificate, including during controller retries or policy changes.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-07": {
+      "controlId": "PKI-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Renewal completes inside the approved pre-expiry safety margin, and the application starts serving the renewed certificate.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "A failed renewal attempt and subsequent reconciliation recovery are exercised without exceeding the declared certificate-availability budget.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-08": {
+      "controlId": "PKI-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Renewal and emergency reissuance obey the explicit approved key-rotation policy.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "When a new key is required, its public-key fingerprint changes and the consumer adopts it without exceeding the approved disruption budget.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-09": {
+      "controlId": "PKI-09",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Trust bundles contain only approved public roots/intermediates and reach only intended namespaces, hosts, or applications.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Explicit target selection prevents production trust from reaching unrelated tenants or non-production consumers.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-10": {
+      "controlId": "PKI-10",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A staging rehearsal demonstrates approved trust overlap, client adoption, replacement issuance, old-trust removal, and rejection after removal.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "The procedure addresses clients with delayed or offline trust updates and identifies its safe rollback boundary.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-11": {
+      "controlId": "PKI-11",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Compromised or withdrawn credentials become unusable to relevant relying parties within an approved maximum time.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "CRL/OCSP is tested where used; where usable protocol revocation is unavailable, the approved short-lived expiry and emergency trust-removal design is tested.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Status freshness and revocation-service outage behavior match the approved relying-party policy.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-12": {
+      "controlId": "PKI-12",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Every production certificate class has an accountable owner, service, issuer, renewal method, deployment locations, and decommissioning procedure.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Retirement stops issuance/renewal, removes obsolete distribution, and accounts for residual private-key copies and access.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-13": {
+      "controlId": "PKI-13",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "CA, ACME, DNS, identity, database, and external signer failures produce bounded retries and visible failures without unauthorized fallback or secret exposure.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Dependency restoration drains the affected issuance/renewal backlog before the declared expiry safety budget is exhausted.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PKI-14": {
+      "controlId": "PKI-14",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A frozen per-adapter role/capability matrix identifies which selected component owns issuance, renewal, key rotation, authorization, trust distribution, consumer delivery, upgrade, and retirement; unsupported capabilities and ownership conflicts are explicit.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Each selected adapter is exercised on its declared OS/runtime for its own documented capabilities. Complementary components such as trust-manager are not required to issue certificates, and intentionally disabled capabilities remain disabled.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The composition of selected adapters demonstrates every lifecycle outcome required by the production profile without claiming that each individual adapter implements the entire lifecycle.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-01": {
+      "controlId": "SEC-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Administrative production access uses individually attributable identities and organization-approved authentication, with MFA wherever supported.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Shared administrator identities are eliminated or confined to a controlled emergency process; this applies to operator access paths rather than requiring a new CLI login UI.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-02": {
+      "controlId": "SEC-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Ansible automation, Kubernetes service accounts, issuers, DNS solvers, backup jobs, and adapters have only the permissions required for their documented duties.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Routine operations do not retain broad administrator credentials solely for installation convenience; privileged exceptions are bounded and reviewed.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-03": {
+      "controlId": "SEC-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Tenant, namespace, workload, and environment boundaries prevent cross-boundary certificate requests, secret reads, trust changes, and administrative mutations.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Isolation is demonstrated through actual credentials and network paths, not only naming or label conventions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-04": {
+      "controlId": "SEC-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Non-CA credentials use approved storage, required encryption, least-privilege access, and separately controlled recovery material.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Credentials are excluded from source, release artifacts, generated output, command transcripts, logs, and ordinary evidence bundles.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Representative credential replacement and withdrawal preserve required service operation while removing old access.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-05": {
+      "controlId": "SEC-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Production hosts meet the approved OS, patch, SELinux, firewall, time, audit, filesystem, kernel, and service baseline.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Exceptions and HAProxy network-policy decisions are explicit and approved; automation does not disable security enforcement to make installation succeed.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-06": {
+      "controlId": "SEC-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Selected workloads use approved identities, filesystem permissions, capabilities, seccomp/privilege settings, resource boundaries, and admission enforcement.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Necessary privileged components have bounded reviewed justifications rather than blanket unexamined exceptions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-07": {
+      "controlId": "SEC-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Management and signing endpoints accept access only from approved sources, with documented ingress and egress paths for API, webhook, CA, backup, DNS, and identity dependencies.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "TLS certificate and SSH/WinRM identity validation remain enabled on the relevant administrative and dependency paths.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-08": {
+      "controlId": "SEC-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Privileged automation validates inputs and execution material, protects controller-side paths, and preserves authenticated SSH/WinRM/TLS channels.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Untrusted configuration cannot become arbitrary shell execution; secrets do not leak through arguments, diffs, logs, or failure messages.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-09": {
+      "controlId": "SEC-09",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Issuance decisions, policy changes, privileged actions, sensitive access, and credential changes correlate to an attributable subject and trusted time.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Security logs reach controlled storage with tested access, retention, integrity, and collection-failure handling.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-10": {
+      "controlId": "SEC-10",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The exact proposed release has current dependency, secret, static, configuration, and relevant runtime security review results covering shipped artifacts and deployment paths.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "No unresolved exploitable critical/high finding, exposed credential, authorization bypass, or signing-key exposure remains.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Unsupported risk-acceptance labels do not satisfy a non-waivable release gate.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-11": {
+      "controlId": "SEC-11",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Request, signing, webhook, and per-tenant consumption controls keep abusive or malfunctioning requesters within approved resource and issuance budgets.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Overload does not bypass authorization, weaken issuer selection, or silently break mandatory tenant isolation.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SEC-12": {
+      "controlId": "SEC-12",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Joiner/mover/leaver and machine-identity lifecycle processes remove obsolete privileges and credentials within an approved maximum delay.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Removing a requester or service identity demonstrably removes effective certificate-request, administration, and secret access; orphaned identities are identified and resolved.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-01": {
+      "controlId": "HA-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The deployed voting membership matches the frozen HA profile and all intended datastore peers are healthy before testing.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "An approved isolated-staging loss of one protected server preserves quorum and meets the separately approved API, request-scheduling, issuance, and consumer-impact budgets; loss beyond quorum is classified as disaster recovery.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-02": {
+      "controlId": "HA-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Critical controller, webhook, approver, trust, ingress, and selected CA workloads have replica and placement rules consistent with the protected failure domain.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Actual placement does not concentrate every required replica in the same supposedly protected host or domain, and co-location or shared external-load-balancer dependencies are explicit.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-03": {
+      "controlId": "HA-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The frozen profile identifies the endpoint-availability mechanism and protected load-balancer or address-owner failures. The managed path exercises active HAProxy/Keepalived-owner failure; an external path exercises its approved service/instance/address-owner failure or predefined provider-assurance plus customer-side continuity route.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Continuous representative client probes show that API and applicable ingress service recover or remain available within approved budgets. Ownership migration is required only where the selected architecture uses that ownership mechanism; a changed local VIP alone is insufficient.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The final endpoint ownership or routing state is stable and consistent with the approved architecture after recovery, with provider-controlled boundaries and any assurance-route limitations explicitly recorded.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-04": {
+      "controlId": "HA-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The load balancer removes an unavailable or functionally unhealthy backend and restores it only after the declared health criteria.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Client requests and connection/retry behavior remain within approved budgets; a successful TCP accept is not treated as proof of a working Kubernetes API or TLS application.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-05": {
+      "controlId": "HA-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Loss or restart of the selected controller leader, webhook, approver, or trust replica does not allow unauthorized approval or exceed scheduling and issuance interruption budgets.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Queued work resumes without manual mutation of successful resources, uncontrolled duplicate issuance, or unresolved reconciliation errors.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-06": {
+      "controlId": "HA-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A staged drain or reboot follows the controlled maintenance runbook, preserves intended quorum and required workloads, and completes within the approved maintenance window.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Voluntary-maintenance protection is tested separately from involuntary failure; no permanently unavailable replica, stuck eviction, or unreconciled workload remains.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-07": {
+      "controlId": "HA-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Every required flow for the actual topology is enumerated and functionally verified, including clients, node peers, CNI, VIP/VRRP, API, ingress/NodePorts, DNS, time, CA, registries, and backup storage.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Configured addressing, ports, routes, source assumptions, MTU, and supported IP-family boundaries match the deployed profile; external-LB designs do not inherit incompatible co-located rules.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-08": {
+      "controlId": "HA-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Controlled failure or rejection by the selected CA/ACME, DNS, registry/egress, time, and object-storage dependencies produces bounded retries, useful alerts, and an explained service impact.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Existing consumer certificate service is measured separately from new issuance, and restored dependencies drain pending work within approved deadlines and renewal safety margins.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-09": {
+      "controlId": "HA-09",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The approved partition cases preserve datastore consistency and avoid unsafe competing VIP/service ownership visible to reachable clients.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Cases outside automatic recovery have documented and tested detection plus isolation, fencing, or operator containment; unsupported split-brain behavior cannot be scored as successful failover.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "HA-10": {
+      "controlId": "HA-10",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "After each completed fault case, the declarative deployment reconciles and required nodes, services, endpoints, issuers, and trust targets return to their intended state.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "No emergency configuration, disabled protection, stale VIP/member, pending renewal, or cumulative degradation is left behind; repeating the selected disruption meets the same approved targets.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-01": {
+      "controlId": "DR-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The recovery inventory covers datastore state, deployment configuration, approved versions/checksums, applicable CA databases/configuration, key-store recovery mechanisms, trust policy, and external dependencies.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Ownership and assurance responsibilities are explicit for externally operated CAs and managed services; an etcd snapshot alone does not satisfy complete PKI recovery.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-02": {
+      "controlId": "DR-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Scheduled backups actually reach the approved off-host destination within the frozen RPO and are retrievable from more than one scheduled cycle.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Missed, incomplete, stale, and replication-failed backups are detected; a configured timer or a local snapshot alone earns no full credit.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-03": {
+      "controlId": "DR-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Every stateful selected CA or key store has an accepted supported recovery path preserving the required issuance, revocation, and trust state.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "HSM material uses approved vendor backup/redundancy mechanisms without unsafe key export; external-provider assurance and customer-side continuity evidence follow the frozen shared-responsibility profile.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-04": {
+      "controlId": "DR-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Authorized recovery can obtain matching RKE2 token, backup access, decryption or key-store recovery material, DNS/bootstrap access, and approved configuration while Kubernetes and its Secrets are unavailable.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Recovery access does not depend on the failed cluster or a single unavailable operator; sensitive values are kept out of reports and command transcripts.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-05": {
+      "controlId": "DR-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Backups are encrypted and access-controlled with approved separation between production administration and destructive backup access.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Retention and deletion protection or approved equivalent, restore access, and recovery-key custody cover the retained backup lifetime; expired keys cannot silently make retained backups unusable.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-06": {
+      "controlId": "DR-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Recovery checks trusted backup identity and integrity before use, including the intended transfer and storage path.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "A controlled corrupt, truncated, incomplete, or wrong-backup fixture is rejected clearly and cannot be reported as recoverable.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-07": {
+      "controlId": "DR-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A backup retrieved from the approved off-host path restores onto isolated staging or replacement hosts through the documented procedure.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "The restored service passes quorum, API/VIP, allowed-and-denied issuance, trust distribution, and representative consumer checks; reusing the original running cluster is insufficient.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-08": {
+      "controlId": "DR-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Measured RTO includes required access, replacement provisioning, backup/credential retrieval, restore, and consumer acceptance, and meets the numeric target frozen before the exercise.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Measured recovered-state age meets RPO using known state or canary timestamps rather than backup-job success alone; deviations and exclusions are visible.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-09": {
+      "controlId": "DR-09",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The declared primary-location, storage, identity, and DNS loss scenarios have viable replacement placement and dependency routes.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "The replacement path does not unknowingly share the failed dependency; the selected continuity or assurance mechanism is exercised exactly as approved for the profile.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "DR-10": {
+      "controlId": "DR-10",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "An authorized operator other than the runbook author can complete recovery from the controlled instructions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Return to service addresses stale identities/trust, recovered credential exposure, replacement-host retirement, and renewed off-host backup success; starting etcd alone is insufficient.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-01": {
+      "controlId": "SUP-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Direct/transitive packages, container images, charts, installers, Ansible collections, and build/release tools are inventoried with resolved versions and owners.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Inventory entries identify acquisition source, intended use, lifecycle status, and applicable trust/licensing decisions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The inventory is generated or reconciled against the actual built and deployed candidate rather than a manually curated subset.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-02": {
+      "controlId": "SUP-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Components requiring immutability are bound to verified content digests or full commit identities, including privileged installers and every action subpath.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Each pin resolves to the intended upstream content and expected action/artifact metadata; a syntactically valid but nonexistent SHA fails qualification.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Mutable aliases cannot replace a required immutable identity during build, deployment, or release.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-03": {
+      "controlId": "SUP-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Each privileged or security-critical download is verified using the profile's approved upstream signature/checksum/provenance policy before execution or installation.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Verification material comes from an authenticated trusted source; calculating a digest from the downloaded payload alone does not establish authenticity.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Tampered content, wrong signer/digest, unsupported architecture, and missing verification material fail closed.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-04": {
+      "controlId": "SUP-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The SBOM identifies the actual released packages/images and relevant dependencies with versions and artifact identifiers.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "License/redistribution obligations have an accountable review and are reflected in distributed notices or required source/materials.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Unresolved component identity or license obligations remain visible and cannot be represented as complete assurance.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-05": {
+      "controlId": "SUP-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Two clean builds using the frozen source and declared build inputs produce identical functional payloads under the documented reproducibility policy.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Any permitted variation is explicitly identified, nonfunctional, reproducible in comparison tooling, and independently reviewed; unexplained binary/payload differences fail.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Builds cannot depend on undeclared local files, stale build trees, mutable downloads, or workstation secrets.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-06": {
+      "controlId": "SUP-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Release attestations/signatures bind artifacts to the intended source commit, builder/workflow identity, and approved release context.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "A consumer-side verification procedure validates those bindings and fails for a substituted artifact, source identity, or unauthorized signer.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Provenance, checksums, and signing/verification policy are retained with the release record.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-07": {
+      "controlId": "SUP-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Source and wheel/container distributions contain exactly the approved runtime resources and required build/metadata files.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Ignored credentials, local environment files, private data, stale cached manifests, and obsolete build resources cannot enter release archives.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The installed candidate remains functional outside the checkout and its intended resource payload matches approved source identities.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-08": {
+      "controlId": "SUP-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Publishing, signing, artifact access, and deployment identities have approved least-privilege scopes and appropriate branch/environment approval boundaries.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Untrusted pull-request code cannot access privileged release/deployment credentials or obtain an authorized release identity.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Credential lifetime, revocation, recovery, and audit ownership are defined and exercised without publishing to an unintended destination.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-09": {
+      "controlId": "SUP-09",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Security scans use current policy/database information and cover the actual candidate artifacts and relevant source/deployment configuration.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Material critical/high findings have recorded exploitability/impact triage and remediation verification; unresolved blocking findings prevent release.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Suppression, accepted risk, skipped scans, or configured-but-unexecuted workflows cannot produce an assured passing control.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "SUP-10": {
+      "controlId": "SUP-10",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Every critical upstream has an advisory/lifecycle monitoring owner and a documented review/response target.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Routine release aging and expedited security updates follow distinct approved paths; unsupported dependencies have dated migration decisions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "A representative advisory exercise demonstrates triage, scope identification, pin update, regression verification, and deployment decision within the declared target.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-01": {
+      "controlId": "TST-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Tests cover supported CLI/configuration contracts, boundary cases, prior defects, and materially unsafe combinations with explicit expected results.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "This framework's baseline policy requires at least 90% line and 85% branch coverage over the declared application scope; measured scope and any stricter thresholds are frozen before assessment.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Critical behaviors have named positive, negative, and failure cases with passing results; coverage percentages alone do not establish behavioral completeness.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-02": {
+      "controlId": "TST-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Actual supported host/controller combinations exercise installation, unchanged reapply, representative drift repair, and relevant cleanup/uninstall boundaries.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Integration results identify real target versions and effective deployed state; mocked command construction is not substituted for host/cluster execution.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Unexpected restart, recreation, residual privileged material, or unsupported cleanup behavior is resolved or explicitly remains unqualified.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-03": {
+      "controlId": "TST-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A versioned, repeatable qualification harness maps the profile-required issuance, renewal, key-rotation, delivery, and served-credential scenarios to their PKI control assertions and binds every run to the actual candidate and approved staging target.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "The harness uses independently inspectable consumer/credential oracles rather than Ready conditions alone; controlled wrong-identity, wrong-key or stale-certificate, and failed-adoption fixtures make the expected assertions fail.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "A documented command or controlled job reruns the frozen scenario set, retains run-specific sanitized artifacts, reports nonzero failure for an unmet critical assertion, and safely cleans its own test resources. Harness qualification does not replace the separate PKI behavior claims.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-04": {
+      "controlId": "TST-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Requests outside approved names, subjects, usages, namespaces/tenants, issuer permissions, or trust-target policy are denied.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Unauthorized identities cannot read private keys, approve requests, change trust targets, or obtain another tenant's credentials.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Denial evidence includes the attempted action, effective identity/policy, and resulting absence of an unauthorized issued credential or secret disclosure.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-05": {
+      "controlId": "TST-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Every combination included in the enterprise support claim has an explicit qualified, failed, or unqualified status and release-bound evidence.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Matrix dimensions cover relevant controller versions, host OS/architecture, Kubernetes distribution/version, chart versions, adapter paths, and upgrade source/target versions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Selected-profile approval does not imply compatibility for unselected or merely registry-listed integrations.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-06": {
+      "controlId": "TST-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Each in-scope critical dependency/process has explicit timeout, retry, degraded-operation, stop, and recovery behavior.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Approved staging fault cases demonstrate the declared behavior for dependency loss, process/node failure, and interrupted operations without unbounded retries or silent data/trust corruption.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Measured failure/recovery outcomes meet the relevant availability and recovery objectives.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-07": {
+      "controlId": "TST-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Relevant static analysis, secret scanning, dependency analysis, malformed-input testing, and adversarial-path verification execute against the assessed revision/artifacts.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Results and tool/policy versions are retained, and material findings are triaged and remediated with passing regression evidence.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "A configured scan, absent result, or narrow unit check cannot stand in for the required security-verification scope.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "TST-08": {
+      "controlId": "TST-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Qualification exercises the actual built candidate packages/images and rendered deployment assets with recorded digests.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Charts/manifests render and validate for the intended platform versions; installed-artifact CLI/resource behavior is checked outside the source tree.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Source-only success, mock-only success, or testing a different build cannot qualify the release candidate.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-01": {
+      "controlId": "OBS-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The service catalog separates request admission/scheduling, eligible approved-request issuance/readiness, and actual consumer certificate availability.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Each indicator has a numerator, denominator, measurement point, time window, numeric target, exclusions, owner, and error-budget policy; intentional policy-denied tests are not confused with failed eligible requests.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-02": {
+      "controlId": "OBS-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Monitoring operators/CRDs, rule selection, scrapes, exporters, retention, and time alignment actually work for the pinned versions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Actual metric names/labels are verified and missing or stale telemetry or monitoring-path loss produces an independent signal; storing a rule manifest does not prove operational monitoring.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-03": {
+      "controlId": "OBS-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Expiry and failed-renewal alerts leave sufficient time for the certificate class's approved recovery window across both short- and long-lived credentials.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Signals distinguish replacement readiness from consumer adoption, identify affected consumers, and do not assume one blanket expiry threshold suits every lifetime.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-04": {
+      "controlId": "OBS-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A controlled representative probe follows allowed issuance, approval, delivery/adoption, and the certificate actually served or used by the consumer.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "The probe verifies expected identity, chain, validity interval, and certificate/key generation or fingerprint, and detects broken adoption while Kubernetes and controller signals remain healthy.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-05": {
+      "controlId": "OBS-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Operational views cover datastore/API, controller queues/retries, admission, approval/trust reconciliation, LB/VIP state, DNS/CA quotas, backup age, time, and resource/disk pressure.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "A responder can distinguish platform, provider, policy, and consumer-delivery failures using collected signals without accessing secret values.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-06": {
+      "controlId": "OBS-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Relevant host, Kubernetes, CA, approval, and trust events reach the approved central system with usable timestamps, access controls, and retention.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Records correlate request, authorization, serial/fingerprint, trust change, and consumer impact without exposing tokens, private keys, or credentials; local cluster loss does not remove the only audit copy.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-07": {
+      "controlId": "OBS-07",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Critical conditions reach the accountable on-call route with service/tenant context, severity, runbook, and escalation information.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Routing, silences/inhibition, acknowledgement, and escalation meet the approved response target; an alert visible only in Prometheus is insufficient.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OBS-08": {
+      "controlId": "OBS-08",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The responsible team reviews measured objectives, budget burn, renewal risk, recurring causes, and alert quality at the declared cadence.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Missing data is not counted as success, dependency impact is not hidden by unsupported exclusions, and exhausted budgets or unobservable health invoke the frozen release/operations policy.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OPS-01": {
+      "controlId": "OPS-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Install, health diagnosis, repair, recovery, and rollback/forward-recovery procedures state prerequisites, authorized roles, stop conditions, expected results, and escalation.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "An authorized operator other than the original author successfully executes every critical recovery procedure in representative staging.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Runbook gaps discovered during execution are corrected and the affected procedure is reverified.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OPS-02": {
+      "controlId": "OPS-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Primary/secondary responders, service hours, incident authority, and acknowledgment, triage, and containment/escalation targets are approved; technical alert delivery is qualified separately under OBS-07.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "After an actually delivered representative alert, an accountable responder diagnoses impact, classifies the incident, and makes or executes the authorized staging containment/escalation decision within the approved targets. Message receipt alone is insufficient.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "When the primary responder is unavailable, a secondary takes accountable ownership and receives an actionable handoff of state, decisions, evidence, and pending recovery work without secret disclosure or loss of required response coverage.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OPS-03": {
+      "controlId": "OPS-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Each production change defines approved scope, preconditions, allowed blast radius, health checkpoints, stop criteria, and rollback/forward-recovery authority.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Staging rehearsal demonstrates serial/canary or other approved rollout limits and a stop on failed health/acceptance criteria.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The release record identifies the actual plan, approvers, artifacts, execution window, and post-change verification.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OPS-04": {
+      "controlId": "OPS-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Supported rotation procedures identify all consumers, authority boundaries, replacement provisioning, verification, old-access revocation, and recovery constraints.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Critical credential/key rotations are rehearsed through the actual consumer path and complete without secret-value disclosure or unintended prolonged outage.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Verification proves both successful replacement behavior and rejection of the superseded credential/key where the protocol permits.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OPS-05": {
+      "controlId": "OPS-05",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Patch, upgrade, retention/cleanup, certificate-policy changes, and dependency maintenance have named owners, operating cadence, and completion targets.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Maintenance procedures preserve intended service, recovery material, trust state, and minimum supported versions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "A representative maintenance cycle records prechecks, execution, postchecks, and any required corrective actions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "OPS-06": {
+      "controlId": "OPS-06",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Exercises cover the declared incident classes, decision authority, evidence preservation, communications, and recovery handover.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Material exercise/incident findings have owners, deadlines, and verification of closure.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "At least one alternate authorized operator demonstrates the required knowledge/access without depending on the original implementer.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PERF-01": {
+      "controlId": "PERF-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The frozen model states certificate counts/classes, tenants, request and renewal rates, synchronization bursts, renewal windows, DNS behavior, provider quotas, backup overlap, and protected-node loss.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Demand assumptions are tied to measured estate or an approved forecast, with numeric latency, backlog, resource, headroom, and duration targets set before testing.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PERF-02": {
+      "controlId": "PERF-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "At the agreed sustained peak and protected single-failure case, scheduling and eligible issuance meet their latency/deadline targets and consumers retain valid certificates.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Observed resources/storage remain within the approved limits and headroom across the justified test duration; steady-state averages do not replace degraded-mode evidence.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PERF-03": {
+      "controlId": "PERF-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The modeled burst, temporary rate limits, and restored backlog do not cause unbounded retries, uncontrolled duplicate issuance, quota exhaustion, or expiry of affected consumers.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Queue age and drain time recover within the frozen budgets; tests use authorized staging issuers and quotas rather than unapproved load on public CAs.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "PERF-04": {
+      "controlId": "PERF-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "A justified endurance window covers representative renewal and backup overlap and shows bounded or explained growth in memory, descriptors, queues, logs, datastore size, and disk use.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Pressure detection, retention and cleanup act before approved service objectives fail; the report includes recovery behavior and a capacity horizon with explicit assumptions.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "EVD-01": {
+      "controlId": "EVD-01",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Every evidence claim identifies the exact release/profile/environment and relevant component, configuration, policy, and artifact fingerprints.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Artifacts have protected locations, hashes or immutable identities, classification, access/retention rules, observation/review timestamps, and freshness/invalidation policy.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Missing, tampered, stale, wrong-subject, or incorrectly reused evidence cannot yield assured credit.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "EVD-02": {
+      "controlId": "EVD-02",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Evidence records specify procedure/test ID, tools, expected outcome, actual outcome, timestamps, limitations, and sanitized inspectable output.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "A second authorized reviewer can reproduce or independently inspect the observation without relying on the original collector's narrative alone.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Screenshots, generated templates, successful reads, and self-attested checklist states are not accepted as sole proof of live behavior.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "EVD-03": {
+      "controlId": "EVD-03",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "Review approval is attributable through an authenticated trusted approval system and is bound to the exact assessment revision and evidence set.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Critical controls receive the required independent reviewer/separation-of-duties approval; editable reviewer-name text alone is insufficient.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "Withdrawn, expired, self-approved, or mismatched approvals cannot authorize an assured control or release verdict.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    },
+    "EVD-04": {
+      "controlId": "EVD-04",
+      "weight": 1,
+      "state": "NOT_ASSESSED",
+      "maturityLevel": null,
+      "accountableOwnerRef": null,
+      "implementationAuthorRef": null,
+      "verifierRef": null,
+      "reviewerApprovalRef": null,
+      "verifiedAt": null,
+      "reviewedAt": null,
+      "nextReviewDueAt": null,
+      "subjectBindingSha256": null,
+      "criteriaResults": {
+        "AC-01": {
+          "criterion": "The versioned evaluator recognizes exactly the 100 stable one-point controls, cumulative 0/0.25/0.5/0.75/1 levels, frozen scope/applicability, and non-compensating gate logic.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-02": {
+          "criterion": "Duplicate/missing controls, invalid arithmetic, stale/tampered evidence, failed/unknown mandatory gates, and active criterion-substituting exceptions cannot produce 100/100 or production approval.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        },
+        "AC-03": {
+          "criterion": "The assessment exports a reproducible per-control decision trail with owner, earned credit, status, evidence, reviewer, limitations, and catalogue/profile version.",
+          "status": "UNKNOWN",
+          "observedResult": null,
+          "evidenceRefs": [],
+          "verificationRef": null
+        }
+      },
+      "evidenceRefs": [],
+      "verificationRunRefs": [],
+      "findingRefs": [],
+      "blockedReason": null,
+      "remediationAction": null,
+      "exceptionRef": null
+    }
+  },
+  "gates": {
+    "G-01": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "GOV-01"
+      ],
+      "conditionalControlIds": [],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-02": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "CFG-01",
+        "CFG-04",
+        "CFG-05",
+        "CFG-06",
+        "CFG-07"
+      ],
+      "conditionalControlIds": [],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-03": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "PKI-01",
+        "PKI-02",
+        "PKI-03",
+        "PKI-04",
+        "PKI-05",
+        "PKI-06",
+        "PKI-07",
+        "PKI-08",
+        "PKI-09",
+        "PKI-11",
+        "PKI-14"
+      ],
+      "conditionalControlIds": [
+        "PKI-10",
+        "PKI-13"
+      ],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-04": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "SEC-01",
+        "SEC-02",
+        "SEC-03",
+        "SEC-04",
+        "SEC-05",
+        "SEC-06",
+        "SEC-07",
+        "SEC-08",
+        "SEC-09",
+        "SEC-10",
+        "SEC-12"
+      ],
+      "conditionalControlIds": [
+        "SEC-11"
+      ],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-05": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "HA-01",
+        "HA-03",
+        "HA-04",
+        "HA-05",
+        "HA-07",
+        "HA-08",
+        "HA-09"
+      ],
+      "conditionalControlIds": [],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-06": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "DR-01",
+        "DR-02",
+        "DR-04",
+        "DR-05",
+        "DR-07",
+        "DR-08"
+      ],
+      "conditionalControlIds": [
+        "DR-03",
+        "DR-09"
+      ],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-07": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "SUP-02",
+        "SUP-03",
+        "SUP-07",
+        "SUP-08",
+        "SUP-09"
+      ],
+      "conditionalControlIds": [],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-08": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "TST-03",
+        "TST-04"
+      ],
+      "conditionalControlIds": [
+        "TST-06"
+      ],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-09": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "OBS-01",
+        "OBS-02",
+        "OBS-03",
+        "OBS-04",
+        "OBS-07"
+      ],
+      "conditionalControlIds": [
+        "OBS-06",
+        "OBS-08"
+      ],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-10": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "OPS-01",
+        "OPS-02",
+        "OPS-03",
+        "OPS-04"
+      ],
+      "conditionalControlIds": [],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-11": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "PERF-02",
+        "PERF-03"
+      ],
+      "conditionalControlIds": [],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    },
+    "G-12": {
+      "status": "UNKNOWN",
+      "mandatoryControlIds": [
+        "EVD-01",
+        "EVD-03",
+        "EVD-04"
+      ],
+      "conditionalControlIds": [],
+      "reviewApprovalRef": null,
+      "checkedAt": null,
+      "rationale": null
+    }
+  },
+  "conditionalGateDecisions": {
+    "PKI-10": {
+      "trigger": "This control becomes a non-waivable gate for any release that introduces, removes, or changes production trust anchors; it is still required for full score in other releases.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    },
+    "PKI-13": {
+      "trigger": "Mandatory release gate where the frozen profile includes issuer, signer, CA database, DNS, or identity dependencies whose loss can affect an approved issuance deadline or renewal safety budget; decide activation from the dependency map before testing.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    },
+    "SEC-11": {
+      "trigger": "Mandatory release gate where the frozen threat/capacity profile includes multiple tenants, untrusted requesters, shared signing capacity, or a mandatory per-tenant resource/isolation requirement; decide activation before overload testing.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    },
+    "DR-03": {
+      "trigger": "Release gate whenever selected CA/key-store recovery is customer-owned or provider recovery assurance is required by the frozen service profile.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    },
+    "DR-09": {
+      "trigger": "Release gate when the frozen service profile promises site/location-loss continuity or requires this dependency-loss scenario.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    },
+    "TST-06": {
+      "trigger": "Mandatory release gate when the assessed profile includes a critical dependency or managed process whose failure can affect issuance, served credentials, trust, or recovery.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    },
+    "OBS-06": {
+      "trigger": "Release gate if the frozen threat model or assurance profile requires independently retained issuance, authorization, or trust-change audit evidence.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    },
+    "OBS-08": {
+      "trigger": "Mandatory release gate where the frozen release policy uses SLO/error-budget state or critical-service telemetry to authorize changes; decide activation from the approved policy before qualification.",
+      "active": null,
+      "rationale": null,
+      "reviewApprovalRef": null
+    }
+  },
+  "evidence": {},
+  "verificationRuns": {},
+  "approvals": {
+    "serviceOwner": null,
+    "pkiAuthority": null,
+    "securityOwner": null,
+    "operationsOwner": null,
+    "independentAssessor": null,
+    "changeAuthority": null
+  },
+  "findings": [],
+  "exceptions": [],
+  "changeImpactReviews": [],
+  "auditTrail": [],
+  "results": {
+    "assessmentScore": null,
+    "verifiedPoints": 0,
+    "maximum": 100,
+    "assessedControls": 0,
+    "unassessedControls": 100,
+    "assuredControls": 0,
+    "failedControls": 0,
+    "blockedControls": 0,
+    "staleControls": 0,
+    "gateVerdict": "UNKNOWN",
+    "productionDecision": "NOT_ASSESSED"
+  }
+}

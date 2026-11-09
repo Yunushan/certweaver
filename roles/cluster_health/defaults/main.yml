@@ -1,0 +1,14 @@
+---
+certweaver_cluster_health_profiles:
+  rke2-ha:
+    argv: [/var/lib/rancher/rke2/bin/kubectl]
+    kubeconfig: /etc/rancher/rke2/rke2.yaml
+  k3s-ha:
+    argv: [/usr/local/bin/k3s, kubectl]
+    kubeconfig: /etc/rancher/k3s/k3s.yaml
+certweaver_cluster_health_nodes: ["{{ inventory_hostname }}"]
+certweaver_cluster_health_phase: post-reconcile
+certweaver_cluster_health_api_port: 6443
+certweaver_cluster_health_retries: 60
+certweaver_cluster_health_delay: 5
+certweaver_cluster_health_request_timeout: 10s

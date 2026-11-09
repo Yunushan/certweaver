@@ -1,8 +1,37 @@
-- name: Upgrade RKE2 servers one at a time
+- name: Validate all managed version transitions before any upgrade mutation
+  hosts: cluster_servers
+  become: true
+  gather_facts: false
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
+  pre_tasks:
+    - name: Validate production snapshot input before fleet observation or upgrade changes
+      ansible.builtin.include_role:
+        name: snapshot_config
+      tags: [always]
+  roles:
+    - role: cluster_version
+      vars:
+        certweaver_cluster_version_require_installed: true
+
+- name: Require a healthy managed cluster before any upgrade mutation
+  hosts: cluster_servers
+  become: true
+  gather_facts: false
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
+  roles:
+    - role: cluster_health
+      vars:
+        certweaver_cluster_health_phase: pre-upgrade
+
+- name: Upgrade managed servers one at a time
   hosts: cluster_servers
   become: true
   gather_facts: true
   serial: 1
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
   roles:
     - role: rke2_server
       when: certweaver_mode == 'rke2-ha'
@@ -13,5 +42,7 @@
   hosts: cluster_bootstrap
   become: true
   gather_facts: true
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
   roles:
     - role: cluster_addons

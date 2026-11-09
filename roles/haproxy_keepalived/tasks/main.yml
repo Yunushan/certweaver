@@ -6,6 +6,7 @@
       - certweaver_keepalived_auth_file is not none
       - lookup('ansible.builtin.file', certweaver_keepalived_auth_file, errors='ignore') | length >= 8
     fail_msg: "VIP, interface, and an 8+ character Keepalived auth file are required."
+  no_log: true
 
 - name: Install HAProxy and Keepalived
   ansible.builtin.dnf:
@@ -13,6 +14,24 @@
       - haproxy
       - keepalived
     state: present
+
+- name: Read the enforcing-SELinux HAProxy network policy
+  ansible.builtin.command: getsebool haproxy_connect_any
+  register: certweaver_haproxy_selinux_network_policy
+  changed_when: false
+  check_mode: false
+  when: ansible_selinux.status | default('disabled') == 'enabled'
+
+- name: Require an operator-approved SELinux policy before starting HAProxy
+  ansible.builtin.assert:
+    that:
+      - certweaver_haproxy_selinux_network_policy.stdout | trim == 'haproxy_connect_any --> on'
+    fail_msg: >-
+      Enforcing SELinux requires an approved HAProxy network policy for these
+      frontend/backend ports. Have the host security owner review the documented
+      prerequisite in docs/operations.md. CertWeaver does not change SELinux
+      booleans or disable enforcement.
+  when: ansible_selinux.status | default('disabled') == 'enabled'
 
 - name: Install HAProxy health check for Keepalived
   ansible.builtin.copy:
@@ -40,6 +59,8 @@
     group: root
     mode: "0600"
   notify: Restart Keepalived
+  no_log: true
+  diff: false
 
 - name: Enable HAProxy
   ansible.builtin.systemd:

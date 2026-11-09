@@ -1,0 +1,148 @@
+---
+- name: Require the approved verified acme.sh checkout
+  ansible.builtin.assert:
+    that:
+      - ansible_check_mode or certweaver_adapter_source_verified | default(false) | bool
+      - certweaver_adapter_source_commit == certweaver_adapter_versions.acme_sh_ref
+    fail_msg: "acme.sh installation requires the verified configured Git commit."
+
+- name: Reconcile installed acme.sh executable to the approved source revision
+  when: not ansible_check_mode
+  block:
+    - name: Inspect acme.sh installation directories without following links
+      ansible.builtin.stat:
+        path: "{{ item }}"
+        follow: false
+      loop:
+        - "{{ certweaver_acme_sh_home }}"
+        - "{{ certweaver_acme_sh_config_home }}"
+        - "{{ certweaver_acme_sh_cert_home }}"
+      register: certweaver_acme_sh_directory_stats
+
+    - name: Refuse substituted acme.sh installation directories
+      ansible.builtin.assert:
+        that:
+          - not item.stat.exists or (item.stat.isdir | default(false) and not item.stat.islnk | default(false))
+        fail_msg: "acme.sh installation directories cannot be substituted by links or other files."
+      loop: "{{ certweaver_acme_sh_directory_stats.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Create private acme.sh installation and state directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      loop:
+        - "{{ certweaver_acme_sh_home }}"
+        - "{{ certweaver_acme_sh_config_home }}"
+        - "{{ certweaver_acme_sh_cert_home }}"
+
+    - name: Inspect installed acme.sh executable identity
+      ansible.builtin.stat:
+        path: "{{ certweaver_acme_sh_home }}/acme.sh"
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      register: certweaver_acme_sh_before
+
+    - name: Refuse substituted installed acme.sh executable
+      ansible.builtin.assert:
+        that:
+          - not certweaver_acme_sh_before.stat.exists or certweaver_acme_sh_before.stat.isreg | default(false)
+          - not certweaver_acme_sh_before.stat.islnk | default(false)
+        fail_msg: "The installed acme.sh executable must be a regular file."
+
+    - name: Inspect approved-source installation marker
+      ansible.builtin.stat:
+        path: "{{ certweaver_acme_sh_home }}/.certweaver-source.sha256"
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      register: certweaver_acme_sh_marker
+
+    - name: Inspect existing acme.sh account configuration without following links
+      ansible.builtin.stat:
+        path: "{{ certweaver_acme_sh_config_home }}/account.conf"
+        follow: false
+      register: certweaver_acme_sh_account
+
+    - name: Refuse substituted acme.sh account configuration and source marker
+      ansible.builtin.assert:
+        that:
+          - not certweaver_acme_sh_account.stat.exists or certweaver_acme_sh_account.stat.isreg | default(false)
+          - not certweaver_acme_sh_account.stat.islnk | default(false)
+          - not certweaver_acme_sh_marker.stat.exists or certweaver_acme_sh_marker.stat.isreg | default(false)
+          - not certweaver_acme_sh_marker.stat.islnk | default(false)
+        fail_msg: "acme.sh account configuration and source marker must be regular files."
+
+    - name: Install or repair acme.sh from the verified checkout
+      ansible.builtin.command:
+        argv:
+          - "{{ certweaver_adapter_source_path }}/acme.sh"
+          - --install
+          - --home
+          - "{{ certweaver_acme_sh_home }}"
+          - --config-home
+          - "{{ certweaver_acme_sh_config_home }}"
+          - --cert-home
+          - "{{ certweaver_acme_sh_cert_home }}"
+          - --accountemail
+          - "{{ certweaver_adapter_options.get('acme-sh', {}).get('accountEmail', 'REPLACE@example.invalid') }}"
+          - --auto-upgrade
+          - "0"
+        chdir: "{{ certweaver_adapter_source_path }}"
+      register: certweaver_acme_sh_install
+      changed_when: certweaver_acme_sh_install.rc == 0
+      when: >-
+        not certweaver_acme_sh_before.stat.exists or
+        certweaver_acme_sh_marker.stat.checksum | default('') !=
+        ((certweaver_adapter_source_commit ~ ':' ~
+          (certweaver_acme_sh_before.stat.checksum | default('')) ~ '\n') | hash('sha256'))
+
+    - name: Restrict installed acme.sh executable ownership and permissions
+      ansible.builtin.file:
+        path: "{{ certweaver_acme_sh_home }}/acme.sh"
+        state: file
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Disable unpinned acme.sh automatic upgrades
+      ansible.builtin.lineinfile:
+        path: "{{ certweaver_acme_sh_config_home }}/account.conf"
+        regexp: "^AUTO_UPGRADE="
+        line: "AUTO_UPGRADE='0'"
+        create: false
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Check installed acme.sh executable after reconciliation
+      ansible.builtin.stat:
+        path: "{{ certweaver_acme_sh_home }}/acme.sh"
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      register: certweaver_acme_sh_after
+
+    - name: Require the reconciled acme.sh executable
+      ansible.builtin.assert:
+        that:
+          - certweaver_acme_sh_after.stat.isreg | default(false)
+          - not certweaver_acme_sh_after.stat.islnk | default(false)
+          - certweaver_acme_sh_after.stat.xusr | default(false)
+          - certweaver_acme_sh_after.stat.uid == 0
+          - certweaver_acme_sh_after.stat.checksum | length == 64
+        fail_msg: "acme.sh installation did not produce the expected executable."
+
+    - name: Record installed acme.sh source and executable identity
+      ansible.builtin.copy:
+        content: "{{ certweaver_adapter_source_commit }}:{{ certweaver_acme_sh_after.stat.checksum }}\n"
+        dest: "{{ certweaver_acme_sh_home }}/.certweaver-source.sha256"
+        owner: root
+        group: root
+        mode: "0600"

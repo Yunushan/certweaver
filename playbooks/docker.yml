@@ -4,6 +4,9 @@
   gather_facts: true
   vars:
     certweaver_adapter_install_mode: docker
+  serial: 1
+  strategy: ansible.builtin.linear
+  any_errors_fatal: true
   roles:
     - role: pki_adapter
       tags: [adapters]
