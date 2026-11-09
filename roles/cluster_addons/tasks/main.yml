@@ -1,3 +1,12 @@
+- name: Validate optional private controller credential export before add-on changes
+  ansible.builtin.include_tasks: _kubeconfig_preflight.yml
+  when: certweaver_fetch_kubeconfig | bool
+
+- name: Validate production snapshot input before add-on changes
+  ansible.builtin.include_role:
+    name: snapshot_config
+  tags: [always]
+
 - name: Resolve cluster CLI paths
   ansible.builtin.set_fact:
     certweaver_cluster_kubeconfig_source: >-
@@ -10,6 +19,21 @@
   ansible.builtin.set_fact:
     certweaver_helm_checksum_resolved: >-
       {{ certweaver_helm_checksums.get(certweaver_helm_arch, certweaver_helm_checksum) }}
+
+- name: Verify supported Helm architecture and archive checksum
+  ansible.builtin.assert:
+    that:
+      - ansible_architecture in certweaver_helm_arch_map
+      - certweaver_helm_checksum_resolved is match('^sha256:[a-fA-F0-9]{64}$')
+    fail_msg: "Helm installation requires a supported architecture and approved SHA-256 checksum."
+
+- name: Create a private version-specific Helm staging directory
+  ansible.builtin.file:
+    path: "/var/cache/certweaver/helm/{{ certweaver_helm_version }}-{{ certweaver_helm_arch }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
 
 - name: Create operator Kubernetes directories
   ansible.builtin.file:
@@ -26,22 +50,21 @@
   ansible.builtin.get_url:
     url: >-
       https://get.helm.sh/helm-{{ certweaver_helm_version }}-linux-{{ certweaver_helm_arch }}.tar.gz
-    dest: "/tmp/helm-{{ certweaver_helm_version }}-linux-{{ certweaver_helm_arch }}.tar.gz"
+    dest: "/var/cache/certweaver/helm/{{ certweaver_helm_version }}-{{ certweaver_helm_arch }}/helm.tar.gz"
     owner: root
     group: root
     mode: "0600"
-    checksum: "{{ certweaver_helm_checksum_resolved | default(omit, true) }}"
+    checksum: "{{ certweaver_helm_checksum_resolved }}"
 
 - name: Extract Helm archive
   ansible.builtin.unarchive:
-    src: "/tmp/helm-{{ certweaver_helm_version }}-linux-{{ certweaver_helm_arch }}.tar.gz"
-    dest: /tmp
+    src: "/var/cache/certweaver/helm/{{ certweaver_helm_version }}-{{ certweaver_helm_arch }}/helm.tar.gz"
+    dest: "/var/cache/certweaver/helm/{{ certweaver_helm_version }}-{{ certweaver_helm_arch }}"
     remote_src: true
-    creates: "/tmp/linux-{{ certweaver_helm_arch }}/helm"
 
 - name: Place Helm binary
   ansible.builtin.copy:
-    src: "/tmp/linux-{{ certweaver_helm_arch }}/helm"
+    src: "/var/cache/certweaver/helm/{{ certweaver_helm_version }}-{{ certweaver_helm_arch }}/linux-{{ certweaver_helm_arch }}/helm"
     dest: /usr/local/bin/helm
     remote_src: true
     owner: root
@@ -75,7 +98,11 @@
     owner: root
     group: root
     mode: "0600"
-  when: certweaver_cluster_kubeconfig_source != certweaver_kubeconfig_path
+  when:
+    - certweaver_mode == 'existing-kubernetes'
+    - certweaver_cluster_kubeconfig_source != certweaver_kubeconfig_path
+  no_log: true
+  diff: false
 
 - name: Protect an in-place existing-cluster kubeconfig
   ansible.builtin.file:
@@ -84,13 +111,12 @@
     group: root
     mode: "0600"
     state: file
-  when: certweaver_cluster_kubeconfig_source == certweaver_kubeconfig_path
+  when:
+    - certweaver_mode == 'existing-kubernetes'
+    - certweaver_cluster_kubeconfig_source == certweaver_kubeconfig_path
 
-- name: Point operator kubeconfig at floating VIP
-  ansible.builtin.replace:
-    path: "{{ certweaver_kubeconfig_path }}"
-    regexp: 'server: https://[^:]+:6443'
-    replace: "server: https://{{ certweaver_vip }}:{{ certweaver_api_front_port }}"
+- name: Configure the selected operator cluster for the floating VIP
+  ansible.builtin.include_tasks: _configure_operator_endpoint.yml
   when: certweaver_mode in ['rke2-ha', 'k3s-ha']
 
 - name: Copy Kubernetes add-on assets
@@ -111,10 +137,42 @@
 
 - name: Reconcile RKE2 S3 snapshot secret
   no_log: true
+  diff: false
   when:
     - certweaver_mode == 'rke2-ha'
     - certweaver_rke2_etcd_s3_enabled | bool
+    - not ansible_check_mode
   block:
+    - name: Clear snapshot staging identity before validation
+      ansible.builtin.set_fact:
+        certweaver_snapshot_stage: {}
+
+    - name: Revalidate snapshot input immediately before private transfer
+      ansible.builtin.include_role:
+        name: snapshot_config
+      tags: [always]
+
+    - name: Allocate invocation-private snapshot staging
+      ansible.builtin.tempfile:
+        state: directory
+        path: /run
+        prefix: certweaver-etcd-s3-
+      register: certweaver_snapshot_stage
+      changed_when: false
+
+    - name: Protect invocation-private snapshot staging
+      ansible.builtin.file:
+        path: "{{ certweaver_snapshot_stage.path }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      changed_when: false
+
+    - name: Verify snapshot comparison utility is available
+      ansible.builtin.command: diff --version
+      changed_when: false
+
     - name: Verify controller S3 snapshot secret file
       ansible.builtin.assert:
         that:
@@ -126,10 +184,32 @@
     - name: Stage RKE2 S3 snapshot secret configuration
       ansible.builtin.copy:
         src: "{{ certweaver_rke2_etcd_s3_config_file }}"
-        dest: /run/certweaver-etcd-s3.env
+        dest: "{{ certweaver_snapshot_stage.path }}/snapshot.env"
         owner: root
         group: root
         mode: "0600"
+        checksum: >-
+          {{ certweaver_snapshot_policy.sha1
+             if certweaver_environment | default('production') == 'production' else omit }}
+      changed_when: false
+
+    - name: Inspect transferred private snapshot input identity
+      ansible.builtin.stat:
+        path: "{{ certweaver_snapshot_stage.path }}/snapshot.env"
+        get_checksum: true
+        checksum_algorithm: sha256
+        get_mime: false
+        get_attributes: false
+      register: certweaver_snapshot_staged
+      when: certweaver_environment | default('production') == 'production'
+
+    - name: Require exactly the validated snapshot bytes before secret rendering
+      ansible.builtin.assert:
+        that:
+          - certweaver_snapshot_staged.stat.checksum == certweaver_snapshot_policy.sha256
+          - certweaver_snapshot_staged.stat.size == certweaver_snapshot_policy.bytes
+        fail_msg: Transferred snapshot input differs from the validated controller file.
+      when: certweaver_environment | default('production') == 'production'
 
     - name: Render RKE2 S3 snapshot Kubernetes Secret
       ansible.builtin.command:
@@ -144,7 +224,7 @@
           - generic
           - "{{ certweaver_rke2_etcd_s3_secret_name }}"
           - --type=etcd.k3s.cattle.io/s3-config-secret
-          - --from-env-file=/run/certweaver-etcd-s3.env
+          - "--from-env-file={{ certweaver_snapshot_stage.path }}/snapshot.env"
           - --dry-run=client
           - -o
           - yaml
@@ -154,10 +234,32 @@
     - name: Write rendered RKE2 S3 snapshot Kubernetes Secret
       ansible.builtin.copy:
         content: "{{ certweaver_rke2_etcd_s3_secret.stdout }}"
-        dest: /run/certweaver-etcd-s3-secret.yaml
+        dest: "{{ certweaver_snapshot_stage.path }}/secret.yaml"
         owner: root
         group: root
         mode: "0600"
+      changed_when: false
+
+    - name: Compare RKE2 S3 snapshot Secret with server-side desired state
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ certweaver_kubeconfig_path }}"
+          - "--cache-dir={{ certweaver_snapshot_stage.path }}/cache"
+          - --request-timeout=30s
+          - diff
+          - --server-side
+          - --field-manager=certweaver
+          - --show-secrets=false
+          - -f
+          - "{{ certweaver_snapshot_stage.path }}/secret.yaml"
+      environment:
+        KUBECTL_EXTERNAL_DIFF: ""
+        TMPDIR: "{{ certweaver_snapshot_stage.path }}"
+      register: certweaver_rke2_etcd_s3_diff
+      changed_when: false
+      failed_when: certweaver_rke2_etcd_s3_diff.rc not in [0, 1]
 
     - name: Apply RKE2 S3 snapshot Kubernetes Secret
       ansible.builtin.command:
@@ -165,34 +267,44 @@
           - kubectl
           - --kubeconfig
           - "{{ certweaver_kubeconfig_path }}"
+          - "--cache-dir={{ certweaver_snapshot_stage.path }}/cache"
+          - --request-timeout=30s
           - apply
           - --server-side
           - --field-manager=certweaver
           - -f
-          - /run/certweaver-etcd-s3-secret.yaml
+          - "{{ certweaver_snapshot_stage.path }}/secret.yaml"
       register: certweaver_rke2_etcd_s3_apply
-      changed_when: >-
-        'created' in certweaver_rke2_etcd_s3_apply.stdout or
-        'configured' in certweaver_rke2_etcd_s3_apply.stdout
+      when: certweaver_rke2_etcd_s3_diff.rc == 1
+      changed_when: true
   always:
     - name: Remove staged RKE2 S3 snapshot secret material
       ansible.builtin.file:
-        path: "{{ item }}"
+        path: "{{ certweaver_snapshot_stage.path }}"
         state: absent
-      loop:
-        - /run/certweaver-etcd-s3.env
-        - /run/certweaver-etcd-s3-secret.yaml
+      when: certweaver_snapshot_stage.path is defined
+      changed_when: false
+
+- name: Acquire verified cert-manager chart
+  ansible.builtin.include_role:
+    name: verified_chart
+  vars:
+    certweaver_chart_key: "certManager"
+    certweaver_chart_name: "cert-manager"
+    certweaver_chart_reference: "oci://quay.io/jetstack/charts/cert-manager"
+    certweaver_chart_repository: ""
+    certweaver_chart_version: "{{ certweaver_cert_manager_version }}"
+    certweaver_chart_checksum: "{{ certweaver_chart_checksums.get('certManager', '') }}"
+  when: certweaver_addons.certManager.enabled | default(false) | bool
 
 - name: Install cert-manager
   ansible.builtin.command:
     argv:
-      - helm
+      - "{{ certweaver_chart_helm_executable | default('/usr/local/bin/helm') }}"
       - upgrade
       - --install
       - cert-manager
-      - oci://quay.io/jetstack/charts/cert-manager
-      - --version
-      - "{{ certweaver_cert_manager_version }}"
+      - "{{ certweaver_chart_archive_path }}"
       - --namespace
       - cert-manager
       - --create-namespace
@@ -213,7 +325,10 @@
   changed_when: >-
     'has been upgraded' in certweaver_cert_manager_helm.stdout or
     'has been installed' in certweaver_cert_manager_helm.stdout
-  when: certweaver_addons.certManager.enabled | default(true) | bool
+  when:
+    - certweaver_addons.certManager.enabled | default(false) | bool
+    - not ansible_check_mode
+    - certweaver_chart_verified | default(false) | bool
 
 - name: Wait for cert-manager webhook readiness
   ansible.builtin.command:
@@ -227,18 +342,28 @@
       - --namespace=cert-manager
       - --timeout=300s
   changed_when: false
-  when: certweaver_addons.certManager.enabled | default(true) | bool
+  when: certweaver_addons.certManager.enabled | default(false) | bool
+
+- name: Acquire verified cert-manager-approver-policy chart
+  ansible.builtin.include_role:
+    name: verified_chart
+  vars:
+    certweaver_chart_key: "approverPolicy"
+    certweaver_chart_name: "cert-manager-approver-policy"
+    certweaver_chart_reference: "oci://quay.io/jetstack/charts/cert-manager-approver-policy"
+    certweaver_chart_repository: ""
+    certweaver_chart_version: "{{ certweaver_approver_policy_version }}"
+    certweaver_chart_checksum: "{{ certweaver_chart_checksums.get('approverPolicy', '') }}"
+  when: certweaver_addons.approverPolicy.enabled | default(false) | bool
 
 - name: Install approver-policy
   ansible.builtin.command:
     argv:
-      - helm
+      - "{{ certweaver_chart_helm_executable | default('/usr/local/bin/helm') }}"
       - upgrade
       - --install
       - cert-manager-approver-policy
-      - oci://quay.io/jetstack/charts/cert-manager-approver-policy
-      - --version
-      - "{{ certweaver_approver_policy_version }}"
+      - "{{ certweaver_chart_archive_path }}"
       - --namespace
       - cert-manager
       - --values
@@ -252,7 +377,10 @@
   changed_when: >-
     'has been upgraded' in certweaver_approver_policy_helm.stdout or
     'has been installed' in certweaver_approver_policy_helm.stdout
-  when: certweaver_addons.approverPolicy.enabled | default(false) | bool
+  when:
+    - certweaver_addons.approverPolicy.enabled | default(false) | bool
+    - not ansible_check_mode
+    - certweaver_chart_verified | default(false) | bool
 
 - name: Apply bootstrap certificate request policies
   ansible.builtin.command:
@@ -300,16 +428,26 @@
     'created' in certweaver_trust_namespace_apply.stdout or
     'configured' in certweaver_trust_namespace_apply.stdout
   when: certweaver_addons.trustManager.enabled | default(false) | bool
+- name: Acquire verified trust-manager chart
+  ansible.builtin.include_role:
+    name: verified_chart
+  vars:
+    certweaver_chart_key: "trustManager"
+    certweaver_chart_name: "trust-manager"
+    certweaver_chart_reference: "oci://quay.io/jetstack/charts/trust-manager"
+    certweaver_chart_repository: ""
+    certweaver_chart_version: "{{ certweaver_trust_manager_version }}"
+    certweaver_chart_checksum: "{{ certweaver_chart_checksums.get('trustManager', '') }}"
+  when: certweaver_addons.trustManager.enabled | default(false) | bool
+
 - name: Install trust-manager
   ansible.builtin.command:
     argv:
-      - helm
+      - "{{ certweaver_chart_helm_executable | default('/usr/local/bin/helm') }}"
       - upgrade
       - --install
       - trust-manager
-      - oci://quay.io/jetstack/charts/trust-manager
-      - --version
-      - "{{ certweaver_trust_manager_version }}"
+      - "{{ certweaver_chart_archive_path }}"
       - --namespace
       - "{{ certweaver_addons.trustManager.dedicatedNamespace | default('cert-manager-trust') }}"
       - --values
@@ -329,18 +467,31 @@
   changed_when: >-
     'has been upgraded' in certweaver_trust_manager_helm.stdout or
     'has been installed' in certweaver_trust_manager_helm.stdout
-  when: certweaver_addons.trustManager.enabled | default(false) | bool
+  when:
+    - certweaver_addons.trustManager.enabled | default(false) | bool
+    - not ansible_check_mode
+    - certweaver_chart_verified | default(false) | bool
+
+- name: Acquire verified cert-manager-csi-driver chart
+  ansible.builtin.include_role:
+    name: verified_chart
+  vars:
+    certweaver_chart_key: "csiDriver"
+    certweaver_chart_name: "cert-manager-csi-driver"
+    certweaver_chart_reference: "oci://quay.io/jetstack/charts/cert-manager-csi-driver"
+    certweaver_chart_repository: ""
+    certweaver_chart_version: "{{ certweaver_csi_driver_version }}"
+    certweaver_chart_checksum: "{{ certweaver_chart_checksums.get('csiDriver', '') }}"
+  when: certweaver_addons.csiDriver.enabled | default(false) | bool
 
 - name: Install cert-manager CSI Driver
   ansible.builtin.command:
     argv:
-      - helm
+      - "{{ certweaver_chart_helm_executable | default('/usr/local/bin/helm') }}"
       - upgrade
       - --install
       - cert-manager-csi-driver
-      - oci://quay.io/jetstack/charts/cert-manager-csi-driver
-      - --version
-      - "{{ certweaver_csi_driver_version }}"
+      - "{{ certweaver_chart_archive_path }}"
       - --namespace
       - cert-manager
       - --values
@@ -354,33 +505,31 @@
   changed_when: >-
     'has been upgraded' in certweaver_csi_driver_helm.stdout or
     'has been installed' in certweaver_csi_driver_helm.stdout
-  when: certweaver_addons.csiDriver.enabled | default(false) | bool
+  when:
+    - certweaver_addons.csiDriver.enabled | default(false) | bool
+    - not ansible_check_mode
+    - certweaver_chart_verified | default(false) | bool
 
-- name: Add Traefik Helm repository
-  ansible.builtin.command:
-    argv:
-      - helm
-      - repo
-      - add
-      - traefik
-      - https://traefik.github.io/charts
-      - --force-update
-  environment:
-    KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
-  register: certweaver_traefik_repo
-  changed_when: "'has been added' in certweaver_traefik_repo.stdout"
+- name: Acquire verified traefik chart
+  ansible.builtin.include_role:
+    name: verified_chart
+  vars:
+    certweaver_chart_key: "traefik"
+    certweaver_chart_name: "traefik"
+    certweaver_chart_reference: "traefik"
+    certweaver_chart_repository: "https://traefik.github.io/charts"
+    certweaver_chart_version: "{{ certweaver_addons.traefik.chartVersion | default('41.0.0') }}"
+    certweaver_chart_checksum: "{{ certweaver_chart_checksums.get('traefik', '') }}"
   when: certweaver_addons.traefik.enabled | default(false) | bool
 
 - name: Install Traefik without independent ACME resolver
   ansible.builtin.command:
     argv:
-      - helm
+      - "{{ certweaver_chart_helm_executable | default('/usr/local/bin/helm') }}"
       - upgrade
       - --install
       - traefik
-      - traefik/traefik
-      - --version
-      - "{{ certweaver_addons.traefik.chartVersion | default('41.0.0') }}"
+      - "{{ certweaver_chart_archive_path }}"
       - --namespace
       - traefik
       - --create-namespace
@@ -397,15 +546,14 @@
     KUBECONFIG: "{{ certweaver_kubeconfig_path }}"
   register: certweaver_traefik_helm
   changed_when: "'has been upgraded' in certweaver_traefik_helm.stdout or 'has been installed' in certweaver_traefik_helm.stdout"
-  when: certweaver_addons.traefik.enabled | default(false) | bool
+  when:
+    - certweaver_addons.traefik.enabled | default(false) | bool
+    - not ansible_check_mode
+    - certweaver_chart_verified | default(false) | bool
 
-- name: Fetch sanitized operator kubeconfig to controller
-  ansible.builtin.fetch:
-    src: "{{ certweaver_kubeconfig_path }}"
-    dest: "{{ certweaver_local_kubeconfig_path }}"
-    flat: true
+- name: Export administrative kubeconfig to a private controller destination
+  ansible.builtin.include_tasks: _export_kubeconfig.yml
   when: certweaver_fetch_kubeconfig | bool
-  no_log: true
 
 - name: Verify Prometheus Operator supports required alert rules
   ansible.builtin.command:

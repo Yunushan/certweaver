@@ -1,5 +1,9 @@
 # Adapter matrix
 
+For exact native/raw, Docker, Windows, Kubernetes and multi-host installation
+paths, required inputs and unexecuted live checks, see
+[Installation paths and qualification](adapter-installation.md).
+
 | # | Adapter | Primary targets | Maturity | Default? |
 |---:|---|---|---|---|
 | 1 | cert-manager | Kubernetes | Production | Yes |

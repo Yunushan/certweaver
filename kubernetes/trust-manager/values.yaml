@@ -6,12 +6,14 @@ app:
   logLevel: 2
   trust:
     namespace: cert-manager-trust
+  securityContext:
+    seccompProfileEnabled: true
   webhook:
+    timeoutSeconds: 10
     tls:
       approverPolicy:
         enabled: true
         certManagerNamespace: cert-manager
-      timeoutSeconds: 10
 secretTargets:
   enabled: false
   authorizedSecretsAll: false
@@ -22,8 +24,6 @@ resources:
   limits:
     cpu: 300m
     memory: 256Mi
-securityContext:
-  seccompProfileEnabled: true
 podDisruptionBudget:
   enabled: true
   minAvailable: 1

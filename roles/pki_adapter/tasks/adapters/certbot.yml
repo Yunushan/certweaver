@@ -2,16 +2,13 @@
   ansible.builtin.dnf:
     name: epel-release
     state: present
-
 - name: Install Certbot and requested plugins
   ansible.builtin.dnf:
-    name: "{{ ['certbot'] + certweaver_adapter_options.get('certbot', {}).get('packages', []) }}"
+    name: '{{ [''certbot''] + certweaver_adapter_options.get(''certbot'', {}).get(''packages'', []) }}'
     state: present
-
 - name: Enable Certbot renewal timer when packaged
   ansible.builtin.systemd:
     name: certbot-renew.timer
     enabled: true
     state: started
-  failed_when: false
   when: certweaver_adapter_start_services | bool

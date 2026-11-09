@@ -1,0 +1,98 @@
+- name: Resolve the installed native server executable
+  ansible.builtin.set_fact:
+    certweaver_native_executable: '{{ {''step-ca'': ''step-ca'', ''caddy-auto-https'': ''caddy'', ''traefik-acme'': ''traefik'',
+      ''openbao-pki'': ''bao''}[item] }}'
+    certweaver_native_options: '{{ certweaver_adapter_options.get(item, {}) }}'
+    certweaver_native_config_name: '{{ {''traefik-acme'': ''config.yaml'', ''openbao-pki'': ''config.hcl''}.get(item, ''config'') }}'
+- name: Require reviewed native server configuration before activation
+  ansible.builtin.assert:
+    that:
+      - item != 'caddy-auto-https' or certweaver_native_options.get('configAdapter', 'json') in ['json', 'caddyfile']
+      - not certweaver_adapter_start_services | bool or certweaver_native_options.get('serviceConfigFile', '') is match('^/[^\n]+$')
+      - item != 'step-ca' or not certweaver_adapter_start_services | bool or certweaver_native_options.get('passwordFile',
+        '') is match('^/[A-Za-z0-9_./-]+$')
+    fail_msg: Native server activation requires serviceConfigFile; step-ca also requires a target passwordFile.
+- name: Create native server identity
+  ansible.builtin.user:
+    name: '{{ certweaver_native_executable }}'
+    system: true
+    create_home: false
+    shell: /sbin/nologin
+- name: Create private native server configuration directory
+  ansible.builtin.file:
+    path: /etc/certweaver/{{ item }}
+    state: directory
+    owner: root
+    group: '{{ certweaver_native_executable }}'
+    mode: '0750'
+- name: Stage the native server configuration dependencies
+  ansible.builtin.include_tasks: _stage_files.yml
+  vars:
+    certweaver_file_adapter: '{{ item }}'
+    certweaver_file_group: '{{ certweaver_native_executable }}'
+- name: Install reviewed native server configuration
+  ansible.builtin.copy:
+    src: '{{ certweaver_native_options.serviceConfigFile }}'
+    dest: /etc/certweaver/{{ item }}/{{ certweaver_native_config_name }}
+    owner: root
+    group: '{{ certweaver_native_executable }}'
+    mode: '0640'
+  when: certweaver_native_options.get('serviceConfigFile', '') | length > 0
+  register: certweaver_native_configuration
+  no_log: true
+- name: Install native server service
+  ansible.builtin.template:
+    src: native.service.j2
+    dest: /etc/systemd/system/certweaver-{{ item }}.service
+    owner: root
+    group: root
+    mode: '0644'
+  register: certweaver_native_unit
+- name: Observe installed executable and service inputs
+  ansible.builtin.stat:
+    path: '{{ witness_path }}'
+    checksum_algorithm: sha256
+  loop: >-
+    {{ ['/usr/local/bin/' ~ certweaver_native_executable,
+        '/etc/certweaver/' ~ item ~ '/' ~ certweaver_native_config_name,
+        '/etc/systemd/system/certweaver-' ~ item ~ '.service'] +
+       (certweaver_native_options.get('files', []) | map(attribute='name') |
+        map('regex_replace', '^', '/etc/certweaver/' ~ item ~ '/') | list) }}
+  loop_control:
+    loop_var: witness_path
+  register: certweaver_native_inputs
+- name: Observe previous activated service witness
+  ansible.builtin.stat:
+    path: /etc/certweaver/{{ item }}/activated.json
+  register: certweaver_native_marker
+- name: Read previous activated service witness
+  ansible.builtin.slurp:
+    src: /etc/certweaver/{{ item }}/activated.json
+  when: certweaver_native_marker.stat.exists
+  register: certweaver_native_previous
+- name: Bind the service state to its installed inputs
+  ansible.builtin.set_fact:
+    certweaver_native_witness: '{{ certweaver_native_inputs.results | map(attribute=''stat'') | map(attribute=''checksum'',
+      default=''missing'') | list }}'
+- name: Reconcile explicitly requested native service activation
+  ansible.builtin.systemd:
+    name: certweaver-{{ item }}.service
+    daemon_reload: true
+    enabled: true
+    state: |-
+      {{ 'restarted' if not certweaver_native_marker.stat.exists or
+         (certweaver_native_previous.content | default('W10=') | b64decode | from_json) !=
+         certweaver_native_witness else 'started' }}
+  when:
+    - not ansible_check_mode
+    - certweaver_adapter_start_services | bool
+- name: Record successfully activated native service inputs
+  ansible.builtin.copy:
+    content: '{{ certweaver_native_witness | to_json }}'
+    dest: /etc/certweaver/{{ item }}/activated.json
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - certweaver_adapter_start_services | bool

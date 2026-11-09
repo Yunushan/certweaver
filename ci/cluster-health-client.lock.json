@@ -1,0 +1,8 @@
+{
+  "version": "v1.36.5",
+  "platform": "linux-amd64",
+  "url": "https://dl.k8s.io/release/v1.36.5/bin/linux/amd64/kubectl",
+  "sha256": "33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e",
+  "checksumUrl": "https://dl.k8s.io/release/v1.36.5/bin/linux/amd64/kubectl.sha256",
+  "scope": "Pinned real client for localhost synthetic health-gate fixtures only; not approval of the production baseline or publisher signatures"
+}

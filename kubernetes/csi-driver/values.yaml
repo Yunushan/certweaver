@@ -1,6 +1,4 @@
-replicaCount: 2
-app:
-  logFormat: json
+# The node plugin is a DaemonSet; this chart has no replicaCount or logFormat value.
 resources:
   requests:
     cpu: 20m

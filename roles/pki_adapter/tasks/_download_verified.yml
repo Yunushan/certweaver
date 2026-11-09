@@ -1,0 +1,72 @@
+---
+- name: Resolve approved adapter payload checksum
+  ansible.builtin.set_fact:
+    certweaver_adapter_payload_checksum: >-
+      {{ certweaver_adapter_checksums.get(
+           certweaver_download_name ~ '_' ~ certweaver_adapter_arch,
+           certweaver_adapter_checksums.get(certweaver_download_name, '')) }}
+
+- name: Require supported architecture and reviewed adapter payload identity
+  ansible.builtin.assert:
+    that:
+      - certweaver_adapter_arch in ['amd64', 'arm64']
+      - certweaver_download_name is match('^[a-z][a-z0-9_-]*$')
+      - certweaver_download_url is match('^https://[^/]+/')
+      - certweaver_adapter_payload_checksum is match('^sha256:[a-fA-F0-9]{64}$')
+    fail_msg: >-
+      Adapter {{ certweaver_download_name }} requires a supported architecture,
+      HTTPS acquisition URL and reviewed sha256 checksum in spec.adapters.checksums.
+
+- name: Resolve private content-addressed adapter cache paths
+  ansible.builtin.set_fact:
+    certweaver_adapter_payload_directory: >-
+      {{ certweaver_adapter_cache_root ~ '/' ~ certweaver_download_name ~ '-' ~
+         certweaver_adapter_arch ~ '/' ~ (certweaver_adapter_payload_checksum[7:] | lower) }}
+
+- name: Resolve verified adapter payload path
+  ansible.builtin.set_fact:
+    certweaver_adapter_payload_path: "{{ certweaver_adapter_payload_directory }}/payload"
+
+- name: Explain unverified adapter acquisition in check mode
+  ansible.builtin.debug:
+    msg: >-
+      Check mode skips adapter download, extraction and installation.
+      Content verification requires an actual approved staging run.
+  when: ansible_check_mode
+
+- name: Acquire and verify adapter content before installation
+  when: not ansible_check_mode
+  block:
+    - name: Create private content-addressed adapter cache
+      ansible.builtin.file:
+        path: "{{ certweaver_adapter_payload_directory }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Download approved adapter payload
+      ansible.builtin.get_url:
+        url: "{{ certweaver_download_url }}"
+        dest: "{{ certweaver_adapter_payload_path }}"
+        checksum: "{{ certweaver_adapter_payload_checksum }}"
+        validate_certs: true
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Recheck adapter payload bytes and file identity
+      ansible.builtin.stat:
+        path: "{{ certweaver_adapter_payload_path }}"
+        follow: false
+        get_checksum: true
+        checksum_algorithm: sha256
+      register: certweaver_adapter_payload_stat
+
+    - name: Refuse installation of unverified adapter bytes
+      ansible.builtin.assert:
+        that:
+          - certweaver_adapter_payload_stat.stat.isreg | default(false)
+          - not certweaver_adapter_payload_stat.stat.islnk | default(false)
+          - certweaver_adapter_payload_stat.stat.checksum == certweaver_adapter_payload_checksum[7:] | lower
+        fail_msg: "Adapter payload integrity or file identity verification failed."

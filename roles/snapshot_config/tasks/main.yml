@@ -1,0 +1,41 @@
+---
+- name: Validate production RKE2 snapshot input on the controller
+  tags: [always]
+  when:
+    - certweaver_mode == 'rke2-ha'
+    - certweaver_environment | default('production') == 'production'
+  block:
+    - name: Require explicit snapshot input and disabled Ansible debug
+      ansible.builtin.assert:
+        that:
+          - not (lookup('ansible.builtin.config', 'DEFAULT_DEBUG') | bool)
+          - certweaver_rke2_etcd_snapshot_enabled | default(true) | bool
+          - certweaver_rke2_etcd_s3_enabled | default(false) | bool
+          - certweaver_rke2_etcd_s3_config_file is defined
+          - certweaver_rke2_etcd_s3_config_file is string
+          - certweaver_rke2_etcd_s3_config_file | length > 0
+        fail_msg: Production snapshot validation requires scheduled S3 backups, a configuration file and disabled Ansible debug.
+      no_log: true
+
+    - name: Read and validate the exact private snapshot configuration
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -m
+          - certweaver.snapshot
+          - "{{ certweaver_rke2_etcd_s3_config_file }}"
+      delegate_to: localhost
+      become: false
+      vars:
+        ansible_connection: local
+        ansible_python_interpreter: "{{ ansible_playbook_python }}"
+      changed_when: false
+      check_mode: false
+      no_log: true
+      diff: false
+      register: certweaver_snapshot_validation
+
+    - name: Retain only the validated snapshot input identity
+      ansible.builtin.set_fact:
+        certweaver_snapshot_policy: "{{ certweaver_snapshot_validation.stdout | from_json }}"
+      no_log: true

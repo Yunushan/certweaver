@@ -1,31 +1,210 @@
 - name: Install FreeIPA server/client and certmonger packages
   ansible.builtin.dnf:
-    name: >-
-      {{ certweaver_adapter_options.get('freeipa-certmonger', {}).get(
-        'packages', ['freeipa-server', 'freeipa-client', 'certmonger']
-      ) }}
+    name: "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get(\n  'packages', ['freeipa-server', 'freeipa-client',\
+      \ 'certmonger', 'python3-pexpect']\n) }}"
     state: present
-
+- name: Resolve the requested FreeIPA topology role
+  ansible.builtin.set_fact:
+    certweaver_freeipa_options: '{{ certweaver_adapter_options.get(''freeipa-certmonger'', {}) }}'
+    certweaver_freeipa_role: '{{ certweaver_adapter_options.get(''freeipa-certmonger'', {}).get(''role'', ''server'')
+      }}'
+- name: Validate the FreeIPA topology role
+  ansible.builtin.assert:
+    that:
+      - certweaver_freeipa_role in ['server', 'replica', 'client']
+    fail_msg: FreeIPA role must be server, replica or client.
 - name: Enable certmonger
   ansible.builtin.systemd:
     name: certmonger
     enabled: true
     state: started
-
-- name: Configure FreeIPA server when explicitly requested
+  when: certweaver_adapter_start_services | bool
+- name: Create private FreeIPA installation state directory
+  ansible.builtin.file:
+    path: /etc/certweaver/freeipa
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+- name: Configure the explicitly requested FreeIPA primary with private interactive credentials
+  when:
+    - certweaver_freeipa_role == 'server'
+    - certweaver_freeipa_options.get('configureServer', false) | bool
+    - certweaver_adapter_start_services | bool
+    - not ansible_check_mode
+  block:
+    - name: Require explicit primary identity and password file paths
+      ansible.builtin.assert:
+        that:
+          - certweaver_freeipa_options.get('realm', '') is match('^[A-Za-z0-9.-]+$')
+          - certweaver_freeipa_options.get('domain', '') is match('^[A-Za-z0-9.-]+$')
+          - certweaver_freeipa_options.get('hostname', '') is match('^[A-Za-z0-9.-]+$')
+          - certweaver_freeipa_options.get('directoryManagerPasswordFile', '') is match('^/[^\n]+$')
+          - certweaver_freeipa_options.get('adminPasswordFile', '') is match('^/[^\n]+$')
+    - name: Observe primary password file protection
+      ansible.builtin.stat:
+        path: '{{ certweaver_freeipa_options[password_option] }}'
+        follow: false
+      loop:
+        - directoryManagerPasswordFile
+        - adminPasswordFile
+      loop_control:
+        loop_var: password_option
+      register: certweaver_freeipa_password_metadata
+      no_log: true
+    - name: Refuse unsafe primary password sources
+      ansible.builtin.assert:
+        that:
+          - password_metadata.stat.isreg | default(false)
+          - not password_metadata.stat.islnk | default(false)
+          - password_metadata.stat.uid == 0
+          - password_metadata.stat.mode in ['0400', '0600']
+          - password_metadata.stat.size >= 8
+          - password_metadata.stat.size <= 4096
+      loop: '{{ certweaver_freeipa_password_metadata.results }}'
+      loop_control:
+        loop_var: password_metadata
+      no_log: true
+    - name: Read protected primary passwords without process arguments
+      ansible.builtin.slurp:
+        src: '{{ certweaver_freeipa_options[password_option] }}'
+      loop:
+        - directoryManagerPasswordFile
+        - adminPasswordFile
+      loop_control:
+        loop_var: password_option
+      register: certweaver_freeipa_passwords
+      no_log: true
+    - name: Require single-line primary passwords
+      ansible.builtin.assert:
+        that:
+          - (password_result.content | b64decode).splitlines() | length == 1
+          - (password_result.content | b64decode).splitlines()[0] is match('^[^\x00-\x1f\x7f]{8,4096}$')
+      loop: '{{ certweaver_freeipa_passwords.results }}'
+      loop_control:
+        loop_var: password_result
+      no_log: true
+    - name: Answer only recognized FreeIPA installation prompts
+      ansible.builtin.expect:
+        command: /usr/sbin/ipa-server-install --realm {{ certweaver_freeipa_options.realm | quote }} --domain {{
+          certweaver_freeipa_options.domain | quote }} --hostname {{ certweaver_freeipa_options.hostname | quote
+          }}
+        creates: /etc/certweaver/freeipa/server-installed.json
+        echo: false
+        timeout: 1800
+        responses:
+          '(?i)Directory Manager password:': '{{ (certweaver_freeipa_passwords.results[0].content | b64decode).splitlines()[0]
+            }}'
+          '(?i)IPA admin password:': '{{ (certweaver_freeipa_passwords.results[1].content | b64decode).splitlines()[0]
+            }}'
+          '(?i)Password \(confirm\):':
+            - '{{ (certweaver_freeipa_passwords.results[0].content | b64decode).splitlines()[0] }}'
+            - '{{ (certweaver_freeipa_passwords.results[1].content | b64decode).splitlines()[0] }}'
+          '(?i)Do you want to configure integrated DNS.*:': 'no'
+          '(?i)Continue to configure the system with these values.*:': 'yes'
+          '(?i)Do you want to configure chrony with NTP server or pool address.*:': 'no'
+      no_log: true
+- name: Require pre-enrolled host credentials for replica promotion
+  ansible.builtin.stat:
+    path: /etc/krb5.keytab
+    follow: false
+  register: certweaver_freeipa_keytab
+  when: certweaver_freeipa_role == 'replica'
+- name: Refuse replica promotion without protected host credentials
+  ansible.builtin.assert:
+    that:
+      - certweaver_freeipa_keytab.stat.isreg | default(false)
+      - not certweaver_freeipa_keytab.stat.islnk | default(false)
+      - certweaver_freeipa_keytab.stat.uid == 0
+      - certweaver_freeipa_keytab.stat.mode in ['0400', '0600']
+    fail_msg: Pre-enroll the replica host, authorize its principal in ipaservers, and protect its host keytab.
+  when: certweaver_freeipa_role == 'replica'
+- name: Promote the authorized host to a CA replica
   ansible.builtin.command:
     argv:
-      - ipa-server-install
+      - ipa-replica-install
       - --unattended
-      - --realm
-      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('realm') }}"
-      - --domain
-      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('domain') }}"
-      - --ds-password
-      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('directoryManagerPassword') }}"
-      - --admin-password
-      - "{{ certweaver_adapter_options.get('freeipa-certmonger', {}).get('adminPassword') }}"
-  args:
-    creates: /etc/ipa/default.conf
+      - --setup-ca
+    creates: /etc/certweaver/freeipa/replica-installed.json
+  when:
+    - certweaver_freeipa_role == 'replica'
+    - certweaver_adapter_start_services | bool
   no_log: true
-  when: certweaver_adapter_options.get('freeipa-certmonger', {}).get('configureServer', false) | bool
+- name: Require a separate enrollment keytab path
+  ansible.builtin.assert:
+    that:
+      - certweaver_freeipa_options.get('keytabFile', '') is match('^/[^\n]+$')
+      - certweaver_freeipa_options.get('keytabFile') != '/etc/krb5.keytab'
+      - certweaver_freeipa_options.get('domain', '') | length > 0
+      - certweaver_freeipa_options.get('realm', '') | length > 0
+      - certweaver_freeipa_options.get('server', '') | length > 0
+    fail_msg: FreeIPA client enrollment requires domain, realm, server and a separate enrollment keytab.
+  when: certweaver_freeipa_role == 'client'
+- name: Observe the protected client enrollment keytab
+  ansible.builtin.stat:
+    path: '{{ certweaver_freeipa_options.keytabFile }}'
+    follow: false
+  register: certweaver_freeipa_client_keytab
+  when: certweaver_freeipa_role == 'client'
+  no_log: true
+- name: Require protected client enrollment credentials
+  ansible.builtin.assert:
+    that:
+      - certweaver_freeipa_client_keytab.stat.isreg | default(false)
+      - not certweaver_freeipa_client_keytab.stat.islnk | default(false)
+      - certweaver_freeipa_client_keytab.stat.uid == 0
+      - certweaver_freeipa_client_keytab.stat.mode in ['0400', '0600']
+    fail_msg: Client enrollment keytab must be a protected regular root-owned file.
+  when: certweaver_freeipa_role == 'client'
+- name: Enroll the selected client using provisioned host credentials
+  ansible.builtin.command:
+    argv:
+      - ipa-client-install
+      - --unattended
+      - --domain
+      - '{{ certweaver_freeipa_options.domain }}'
+      - --realm
+      - '{{ certweaver_freeipa_options.realm }}'
+      - --server
+      - '{{ certweaver_freeipa_options.server }}'
+      - --keytab
+      - '{{ certweaver_freeipa_options.keytabFile }}'
+    creates: /etc/certweaver/freeipa/client-installed.json
+  when:
+    - certweaver_freeipa_role == 'client'
+    - certweaver_adapter_start_services | bool
+  no_log: true
+- name: Record successfully requested replica promotion
+  ansible.builtin.copy:
+    content: '{{ {''role'': ''replica'', ''host'': inventory_hostname} | to_json }}'
+    dest: /etc/certweaver/freeipa/replica-installed.json
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - certweaver_freeipa_role == 'replica'
+    - certweaver_adapter_start_services | bool
+- name: Record successfully requested primary installation
+  ansible.builtin.copy:
+    content: '{{ {''role'': ''server'', ''host'': inventory_hostname} | to_json }}'
+    dest: /etc/certweaver/freeipa/server-installed.json
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - certweaver_freeipa_role == 'server'
+    - certweaver_freeipa_options.get('configureServer', false) | bool
+    - certweaver_adapter_start_services | bool
+- name: Record successfully requested client enrollment
+  ansible.builtin.copy:
+    content: '{{ {''role'': ''client'', ''host'': inventory_hostname} | to_json }}'
+    dest: /etc/certweaver/freeipa/client-installed.json
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - certweaver_freeipa_role == 'client'
+    - certweaver_adapter_start_services | bool

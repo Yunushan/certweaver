@@ -2,8 +2,15 @@
   ansible.builtin.assert:
     that:
       - certweaver_win_acme_version | length > 0
+      - certweaver_win_acme_version is match('^v?[0-9]+([.][0-9]+){1,3}([-+][A-Za-z0-9][A-Za-z0-9.+-]*)?$')
       - certweaver_win_acme_url | length > 0
-    fail_msg: "Set a reviewed win-acme version and official release URL."
+      - certweaver_win_acme_url is match('^https://[^/]+/')
+      - certweaver_win_acme_checksum is match('^(sha256:)?[a-fA-F0-9]{64}$')
+    fail_msg: "Set a reviewed win-acme version, HTTPS release URL and SHA-256 checksum."
+
+- name: Normalize approved win-acme archive identity
+  ansible.builtin.set_fact:
+    certweaver_win_acme_digest: "{{ certweaver_win_acme_checksum | regex_replace('^sha256:', '') | lower }}"
 
 - name: Create CertWeaver Windows directories
   ansible.windows.win_file:
@@ -14,11 +21,40 @@
   ansible.windows.win_get_url:
     url: "{{ certweaver_win_acme_url }}"
     dest: '{{ certweaver_windows_adapter_root }}\win-acme.zip'
-    checksum: "{{ certweaver_win_acme_checksum | default(omit, true) }}"
+    checksum: "{{ certweaver_win_acme_digest }}"
     checksum_algorithm: sha256
+    validate_certs: true
+  register: certweaver_win_acme_archive
+  when: not ansible_check_mode
+
+- name: Check selected win-acme extraction marker
+  ansible.windows.win_stat:
+    path: '{{ certweaver_windows_adapter_root }}\win-acme\.certweaver-current.sha256'
+    get_checksum: true
+    checksum_algorithm: sha256
+  register: certweaver_win_acme_marker
+  when: not ansible_check_mode
+
+- name: Check installed win-acme executable
+  ansible.windows.win_stat:
+    path: '{{ certweaver_windows_adapter_root }}\win-acme\wacs.exe'
+  register: certweaver_win_acme_executable
+  when: not ansible_check_mode
 
 - name: Expand win-acme archive
   community.windows.win_unzip:
     src: '{{ certweaver_windows_adapter_root }}\win-acme.zip'
     dest: '{{ certweaver_windows_adapter_root }}\win-acme'
-    creates: '{{ certweaver_windows_adapter_root }}\win-acme\wacs.exe'
+  when:
+    - not ansible_check_mode
+    - >-
+      certweaver_win_acme_archive.changed or
+      certweaver_win_acme_marker.stat.checksum | default('') !=
+      ((certweaver_win_acme_digest ~ '\n') | hash('sha256')) or
+      not certweaver_win_acme_executable.stat.exists
+
+- name: Record verified win-acme archive extraction
+  ansible.windows.win_copy:
+    content: "{{ certweaver_win_acme_digest }}\n"
+    dest: '{{ certweaver_windows_adapter_root }}\win-acme\.certweaver-current.sha256'
+  when: not ansible_check_mode

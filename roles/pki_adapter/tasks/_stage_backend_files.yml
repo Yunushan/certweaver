@@ -1,0 +1,17 @@
+- name: Stage reviewed chart and host-container inputs before adapter execution
+  ansible.builtin.include_tasks: _stage_files.yml
+  vars:
+    certweaver_file_adapter: '{{ item }}'
+  loop: >-
+    {{ certweaver_enabled_adapters | default([]) |
+       intersect(['step-ca', 'openbao-pki', 'ejbca-community', 'spire', 'traefik-acme']) }}
+  when:
+    - certweaver_mode | default('standalone') != 'docker'
+    - >-
+      item == 'ejbca-community' or
+      (item in ['step-ca', 'openbao-pki'] and
+       certweaver_adapter_options.get(item, {}).get('installMode',
+         'kubernetes' if certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes']
+         else 'standalone') != 'standalone') or
+      (item in ['spire', 'traefik-acme'] and
+       certweaver_mode in ['rke2-ha', 'k3s-ha', 'existing-kubernetes'])

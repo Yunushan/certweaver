@@ -1,17 +1,28 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 from . import __version__
-from .config import load_config, validate_config
-from .errors import CertWeaverError
-from .readiness import repo_score, score_markdown, write_evidence_bundle
+from .config import _get, load_config, validate_config
+from .controller import probe_windows_controller
+from .enterprise import evaluate_enterprise, initialize_enterprise
+from .errors import CertWeaverError, ConfigurationError
+from .readiness import (
+    assess_evidence,
+    assessment_markdown,
+    repo_score,
+    score_markdown,
+    write_evidence_bundle,
+)
 from .registry import load_registry, project_root
 from .render import execution_plan, write_inventory
+from .staging import check_staging, initialize_staging
 
 
 def _config_argument(parser: argparse.ArgumentParser) -> None:
@@ -77,7 +88,14 @@ def command_render(args: argparse.Namespace) -> int:
     return 0
 
 
-def command_score(_: argparse.Namespace) -> int:
+def command_score(args: argparse.Namespace) -> int:
+    if args.evidence:
+        config = load_config(args.config or "certweaver.yml")
+        assessment = assess_evidence(config, args.evidence)
+        print(assessment_markdown(assessment), end="")
+        return 0 if assessment.complete else 2
+    if args.config:
+        raise ConfigurationError("score --config requires --evidence DIRECTORY")
     print(score_markdown(), end="")
     return 0
 
@@ -97,6 +115,50 @@ def command_evidence(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_enterprise_score(args: argparse.Namespace) -> int:
+    assessment = evaluate_enterprise(args.assessment)
+    if args.json:
+        print(json.dumps(assessment.to_dict(), indent=2))
+    else:
+        print(f"Enterprise verified credit: {assessment.verified_points:g}/100")
+        print(f"Assessed controls: {assessment.assessed_controls}/100")
+        print(f"Production decision: {assessment.production_decision}")
+        print("Authentication backend: unavailable in this CLI; assured credit is denied")
+        print("Zero verified credit means no accepted proof, not measured operational failure.")
+        for category, points in assessment.category_scores.items():
+            print(f"  {category}: {points:g}")
+        for gate, status in assessment.gates.items():
+            print(f"  {gate}: {status}")
+        for error in assessment.errors:
+            print(f"ERROR: {error}")
+        for control in assessment.controls:
+            if control.limitations:
+                print(f"{control.control_id}: {'; '.join(control.limitations)}")
+    return 0 if assessment.complete else 2
+
+
+def command_enterprise_init(args: argparse.Namespace) -> int:
+    print(initialize_enterprise(args.output))
+    return 0
+
+
+def command_staging_init(args: argparse.Namespace) -> int:
+    print(initialize_staging(args.output))
+    return 0
+
+
+def command_staging_check(args: argparse.Namespace) -> int:
+    report = check_staging(args.directory, config_path=args.config, inventory_path=args.inventory)
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(f"Staging input status: {report['status']}")
+        print("Execution authority: unverified; production remains NOT_APPROVED")
+        for issue in report["issues"]:
+            print(f"{issue['path']}: {issue['reason']}")
+    return 0 if report["inputsComplete"] else 2
+
+
 def _playbook_for_mode(mode: str) -> str:
     return {
         "rke2-ha": "rke2-ha.yml",
@@ -109,17 +171,55 @@ def _playbook_for_mode(mode: str) -> str:
     }[mode]
 
 
+def _required_secret_files(config: dict) -> dict[str, Path | None]:
+    if _get(config, "spec.mode") not in {"rke2-ha", "k3s-ha"}:
+        return {}
+    source = Path(config.get("__source_path__", ".")).parent
+    values = {
+        "RKE2/K3s token": _get(config, "spec.secrets.rke2TokenFile"),
+    }
+    if _get(config, "spec.platform.loadBalancer.enabled", True):
+        values["Keepalived authentication"] = _get(config, "spec.secrets.keepalivedAuthFile")
+    if _get(config, "spec.mode") == "rke2-ha" and _get(
+        config, "spec.rke2.etcdSnapshots.s3.enabled", False
+    ):
+        values["etcd S3 configuration"] = _get(
+            config, "spec.rke2.etcdSnapshots.s3.configSecretFile"
+        )
+    return {name: source / value if value else None for name, value in values.items()}
+
+
 def command_doctor(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config)
+    result = validate_config(config, for_deployment=True)
     checks = {
         "python": sys.executable,
         "ansible-playbook": shutil.which("ansible-playbook"),
-        "ssh": shutil.which("ssh"),
     }
-    mode = config.get("spec", {}).get("mode")
+    mode = _get(config, "spec.mode")
+    if mode != "windows":
+        checks["ssh"] = shutil.which("ssh")
+    checks.update(
+        {
+            f"{name} file": str(path) if path and path.is_file() else None
+            for name, path in _required_secret_files(config).items()
+        }
+        if result.ok
+        else {}
+    )
     if mode == "windows":
-        checks["ansible Windows collections"] = "checked during deployment"
+        print(
+            "NOTE: Install the ansible.windows and community.windows collections before deployment"
+        )
+        if result.ok and checks["ansible-playbook"]:
+            try:
+                checks.update(
+                    probe_windows_controller(
+                        config, checks["ansible-playbook"], _ansible_environment(project_root())
+                    )
+                )
+            except ConfigurationError as exc:
+                result.errors.append(str(exc))
     failed = False
     for name, value in checks.items():
         state = "OK" if value else "MISSING"
@@ -135,14 +235,23 @@ def command_doctor(args: argparse.Namespace) -> int:
 
 def command_deploy(args: argparse.Namespace) -> int:
     config = load_config(args.config)
-    result = validate_config(config)
+    result = validate_config(config, for_deployment=True)
     result.require_ok()
+    executable = shutil.which("ansible-playbook")
+    if not executable:
+        raise ConfigurationError("ansible-playbook is required; install the Ansible prerequisites")
+    for name, path in _required_secret_files(config).items():
+        if path is None or not path.is_file():
+            raise ConfigurationError(f"Required {name} file is missing; run certweaver doctor")
     root = project_root()
-    inventory = Path(args.inventory)
-    write_inventory(config, inventory)
     mode = config["spec"]["mode"]
+    environment = _ansible_environment(root)
+    if mode == "windows":
+        probe_windows_controller(config, executable, environment)
+    inventory = Path(args.inventory).resolve()
+    write_inventory(config, inventory)
     cmd = [
-        "ansible-playbook",
+        executable if mode == "windows" else "ansible-playbook",
         "-i",
         str(inventory),
         str(root / "playbooks" / _playbook_for_mode(mode)),
@@ -154,7 +263,17 @@ def command_deploy(args: argparse.Namespace) -> int:
     if args.tags:
         cmd.extend(["--tags", args.tags])
     print("Executing:", " ".join(cmd))
-    return subprocess.run(cmd, check=False).returncode
+    return subprocess.run(cmd, check=False, env=environment).returncode
+
+
+def _ansible_environment(root: Path) -> dict[str, str]:
+    environment = os.environ.copy()
+    environment.setdefault("ANSIBLE_CONFIG", str(root / "ansible.cfg"))
+    roles_path = str(root / "roles")
+    if environment.get("ANSIBLE_ROLES_PATH"):
+        roles_path += os.pathsep + environment["ANSIBLE_ROLES_PATH"]
+    environment["ANSIBLE_ROLES_PATH"] = roles_path
+    return environment
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -179,12 +298,42 @@ def build_parser() -> argparse.ArgumentParser:
     render.set_defaults(func=command_render)
 
     score = sub.add_parser("score", help="Show the repo-local production maturity score")
+    score.add_argument("-c", "--config", help="Deployment configuration for evidence assessment")
+    score.add_argument("--evidence", help="Assess a reviewed evidence bundle; exit 2 if incomplete")
     score.set_defaults(func=command_score)
 
     evidence = sub.add_parser("evidence", help="Write a sanitized production evidence bundle")
     _config_argument(evidence)
     evidence.add_argument("-o", "--output", default=".certweaver/evidence")
     evidence.set_defaults(func=command_evidence)
+
+    enterprise_init = sub.add_parser(
+        "enterprise-init", help="Create an unassessed enterprise v1 record without overwriting"
+    )
+    enterprise_init.add_argument("-o", "--output", required=True)
+    enterprise_init.set_defaults(func=command_enterprise_init)
+
+    enterprise_score = sub.add_parser(
+        "enterprise-score", help="Recompute enterprise v1 evidence credit and gates"
+    )
+    enterprise_score.add_argument(
+        "assessment", help="Assessment JSON; evidence paths relative to it"
+    )
+    enterprise_score.add_argument(
+        "--json", action="store_true", help="Export all control decisions"
+    )
+    enterprise_score.set_defaults(func=command_enterprise_score)
+
+    staging_init = sub.add_parser("staging-init", help="Create a private, unapproved input package")
+    staging_init.add_argument("-o", "--output", required=True)
+    staging_init.set_defaults(func=command_staging_init)
+
+    staging_check = sub.add_parser("staging-check", help="Inspect staging inputs without execution")
+    staging_check.add_argument("directory", help="Directory created by staging-init")
+    staging_check.add_argument("--config", help="Explicit local configuration to validate and bind")
+    staging_check.add_argument("--inventory", help="Explicit rendered local inventory to compare")
+    staging_check.add_argument("--json", action="store_true")
+    staging_check.set_defaults(func=command_staging_check)
 
     doctor = sub.add_parser("doctor", help="Check local prerequisites")
     _config_argument(doctor)
@@ -204,7 +353,7 @@ def main() -> None:
     try:
         args = build_parser().parse_args()
         raise SystemExit(args.func(args))
-    except CertWeaverError as exc:
+    except (CertWeaverError, OSError) as exc:
         print(f"certweaver: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc
 

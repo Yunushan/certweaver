@@ -99,6 +99,30 @@
     - key: fs.inotify.max_user_watches
       value: 524288
 
+- name: Apply the kubelet kernel defaults before enabling protection
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+    sysctl_file: /etc/sysctl.d/91-certweaver-kubelet.conf
+  loop:
+    - key: vm.panic_on_oom
+      value: 0
+    - key: vm.overcommit_memory
+      value: 1
+    - key: kernel.panic
+      value: 10
+    - key: kernel.panic_on_oops
+      value: 1
+    - key: kernel.keys.root_maxkeys
+      value: 1000000
+    - key: kernel.keys.root_maxbytes
+      value: 25000000
+  when: >-
+    (certweaver_mode == 'rke2-ha' and certweaver_rke2_protect_kernel_defaults | bool) or
+    (certweaver_mode == 'k3s-ha' and certweaver_k3s_protect_kernel_defaults | bool)
+
 - name: Enable firewalld
   ansible.builtin.systemd:
     name: firewalld

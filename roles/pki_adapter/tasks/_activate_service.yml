@@ -1,0 +1,64 @@
+- name: Observe the installed service inputs
+  ansible.builtin.stat:
+    path: '{{ witness_path }}'
+    checksum_algorithm: sha256
+  loop: '{{ certweaver_service_witness_paths }}'
+  loop_control:
+    loop_var: witness_path
+  register: certweaver_service_inputs
+- name: Require complete service inputs before activation
+  ansible.builtin.assert:
+    that:
+      - service_input.stat.isreg | default(false)
+      - service_input.stat.checksum is defined
+    fail_msg: Service activation requires every reviewed executable and configuration input.
+  loop: '{{ certweaver_service_inputs.results }}'
+  loop_control:
+    loop_var: service_input
+  when:
+    - not ansible_check_mode
+    - certweaver_adapter_start_services | bool
+- name: Observe the last successful activation witness
+  ansible.builtin.stat:
+    path: '{{ certweaver_service_witness_marker }}'
+    follow: false
+  register: certweaver_service_marker
+- name: Reject substituted activation witnesses
+  ansible.builtin.assert:
+    that:
+      - certweaver_service_marker.stat.isreg | default(false)
+      - not certweaver_service_marker.stat.islnk | default(false)
+    fail_msg: Service activation witness must be a regular managed file.
+  when: certweaver_service_marker.stat.exists
+- name: Read the last successful activation witness
+  ansible.builtin.slurp:
+    src: '{{ certweaver_service_witness_marker }}'
+  when: certweaver_service_marker.stat.exists
+  register: certweaver_service_previous
+- name: Bind activation to the installed byte identities
+  ansible.builtin.set_fact:
+    certweaver_service_witness: >-
+      {{ certweaver_service_inputs.results | map(attribute='stat') |
+         map(attribute='checksum', default='missing') | list }}
+- name: Reconcile the explicitly requested application service
+  ansible.builtin.systemd:
+    name: '{{ certweaver_service_name }}'
+    daemon_reload: true
+    enabled: true
+    state: >-
+      {{ 'restarted' if not certweaver_service_marker.stat.exists or
+         (certweaver_service_previous.content | default('W10=') | b64decode | from_json) !=
+         certweaver_service_witness else 'started' }}
+  when:
+    - not ansible_check_mode
+    - certweaver_adapter_start_services | bool
+- name: Record only successfully activated application inputs
+  ansible.builtin.copy:
+    content: '{{ certweaver_service_witness | to_json }}'
+    dest: '{{ certweaver_service_witness_marker }}'
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - not ansible_check_mode
+    - certweaver_adapter_start_services | bool

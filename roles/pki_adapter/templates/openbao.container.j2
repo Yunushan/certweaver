@@ -4,7 +4,7 @@ After=network-online.target
 Wants=network-online.target
 
 [Container]
-Image=openbao/openbao:{{ certweaver_adapter_versions.openbao_image }}
+Image=docker.io/openbao/openbao@{{ certweaver_adapter_versions.openbao_image | lower }}
 ContainerName=certweaver-openbao
 Volume=/etc/openbao:/openbao/config:Z
 Volume=/var/lib/openbao:/openbao/data:Z

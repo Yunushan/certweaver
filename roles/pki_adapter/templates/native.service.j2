@@ -1,0 +1,40 @@
+[Unit]
+Description=CertWeaver {{ item }}
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ certweaver_native_executable }}
+Group={{ certweaver_native_executable }}
+{% if item == 'step-ca' %}
+ExecStart=/usr/local/bin/step-ca /etc/certweaver/step-ca/config --password-file {{ certweaver_native_options.get('passwordFile', '/etc/certweaver/step-ca/password') }}
+{% elif item == 'openbao-pki' %}
+ExecStart=/usr/local/bin/bao server -config=/etc/certweaver/openbao-pki/config.hcl
+AmbientCapabilities=CAP_IPC_LOCK
+CapabilityBoundingSet=CAP_IPC_LOCK
+LimitMEMLOCK=infinity
+MemorySwapMax=0
+{% elif item == 'caddy-auto-https' %}
+ExecStart=/usr/local/bin/caddy run --config /etc/certweaver/caddy-auto-https/config{{ ' --adapter caddyfile' if certweaver_native_options.get('configAdapter', 'json') == 'caddyfile' else '' }}
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+{% else %}
+ExecStart=/usr/local/bin/traefik --configFile=/etc/certweaver/traefik-acme/config.yaml
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+{% endif %}
+Restart=on-failure
+RestartSec=5
+UMask=0077
+StateDirectory=certweaver-{{ item }}
+StateDirectoryMode=0700
+WorkingDirectory=/var/lib/certweaver-{{ item }}
+Environment=HOME=/var/lib/certweaver-{{ item }}
+Environment=XDG_DATA_HOME=/var/lib/certweaver-{{ item }}/data
+Environment=XDG_CONFIG_HOME=/var/lib/certweaver-{{ item }}/config
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,32 @@
+- name: Create the private adapter input directory
+  ansible.builtin.file:
+    path: /etc/certweaver/{{ certweaver_file_adapter }}
+    state: directory
+    owner: root
+    group: '{{ certweaver_file_group | default(''root'') }}'
+    mode: '0750'
+- name: Require explicit controller files and confined target names
+  ansible.builtin.assert:
+    that:
+      - adapter_file is mapping
+      - adapter_file.get('source', '') is match('^/[^\n]+$')
+      - adapter_file.get('name', '') is match('^[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - adapter_file.get('name') not in ['config', 'config.py', 'config.yaml', 'config.hcl', 'activated.json']
+      - adapter_file.get('mode', '0640') in ['0400', '0600', '0640']
+    fail_msg: Adapter files require absolute controller sources, confined filenames and private permissions.
+  loop: '{{ certweaver_adapter_options.get(certweaver_file_adapter, {}).get(''files'', []) }}'
+  loop_control:
+    loop_var: adapter_file
+  no_log: true
+- name: Stage reviewed adapter configuration and credential files
+  ansible.builtin.copy:
+    src: '{{ adapter_file.source }}'
+    dest: /etc/certweaver/{{ certweaver_file_adapter }}/{{ adapter_file.name }}
+    owner: root
+    group: '{{ certweaver_file_group | default(''root'') }}'
+    mode: '{{ adapter_file.get(''mode'', ''0640'') }}'
+    follow: false
+  loop: '{{ certweaver_adapter_options.get(certweaver_file_adapter, {}).get(''files'', []) }}'
+  loop_control:
+    loop_var: adapter_file
+  no_log: true

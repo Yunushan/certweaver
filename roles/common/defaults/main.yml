@@ -3,6 +3,7 @@ certweaver_common_packages:
   - bash-completion
   - chrony
   - curl
+  - diffutils
   - firewalld
   - iproute
   - jq

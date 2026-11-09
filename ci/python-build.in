@@ -1,0 +1,6 @@
+# Combined with pyproject.toml runtime and build-system requirements.
+build>=1.2
+pip>=25.3
+# Parse authenticated Fulcio certificate extensions with the maintained X.509 library.
+cryptography>=50,<51
+PyJWT>=2.10.1,<3

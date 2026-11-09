@@ -1,11 +1,15 @@
-.PHONY: install lint test validate matrix package clean
+.PHONY: install lint test controller-check validate matrix package clean
+
+CONTROLLER_CHECK_OUTPUT ?= .certweaver/controller-preflight-check
 
 install:
-	python3 -m pip install -e '.[dev]'
+	python3 scripts/install-python-deps.py dev --editable
 	ansible-galaxy collection install -r collections/requirements.yml
 
 lint:
-	ruff check src tests
+	ruff check src tests scripts/*.py ci/*.py roles/pki_adapter/files/verify-git-checkout roles/pki_adapter/files/*.py roles/cluster_addons/files/protect-kubeconfig setup.py
+	python3 scripts/check-release-workflows.py
+	python3 scripts/check-adapter-acquisition.py
 	yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
 	ansible-lint playbooks roles
 
@@ -14,6 +18,10 @@ format:
 
 test:
 	pytest --cov=certweaver --cov-report=term-missing
+	python3 scripts/check-coverage.py
+
+controller-check:
+	python3 scripts/check-controller-preflight.py --output-dir "$(CONTROLLER_CHECK_OUTPUT)"
 
 validate:
 	./scripts/validate-all.sh
@@ -22,10 +30,12 @@ matrix:
 	certweaver matrix
 
 package:
-	mkdir -p dist
+	python3 scripts/build-package.py --commit "$$(git rev-parse HEAD)"
+	python3 scripts/check-package-reproducibility.py --commit "$$(git rev-parse HEAD)"
+	python3 scripts/check-wheel.py dist/*.whl
 	git archive --format=tar.gz --prefix=certweaver-v0.1.0/ -o dist/certweaver-v0.1.0.tar.gz HEAD
 	git archive --format=zip --prefix=certweaver-v0.1.0/ -o dist/certweaver-v0.1.0.zip HEAD
-	cd dist && sha256sum certweaver-v0.1.0.* > SHA256SUMS
+	cd dist && sha256sum *.whl *.tar.gz *.zip > SHA256SUMS
 
 clean:
 	rm -rf .pytest_cache .ruff_cache .coverage htmlcov build dist *.egg-info src/*.egg-info .certweaver

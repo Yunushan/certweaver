@@ -1,5 +1,6 @@
 name: CI
 on:
+  workflow_call:
   pull_request:
   push:
     branches: [main]
@@ -8,17 +9,97 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.14"]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        id: application-python
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
           cache: pip
-      - run: pip install -e '.[dev]'
+      - run: python scripts/install-python-deps.py dev --editable
+      - name: Prepare private verification workspace
+        run: install -d -m 0700 .certweaver .certweaver/tools
       - run: ansible-galaxy collection install -r collections/requirements.yml
-      - run: ruff check src tests
+      - run: >-
+          ruff check src tests scripts/*.py ci/*.py
+          roles/pki_adapter/files/verify-git-checkout roles/pki_adapter/files/*.py
+          roles/cluster_addons/files/protect-kubeconfig setup.py
+      - run: python scripts/check-release-workflows.py
+      - run: python scripts/check-adapter-acquisition.py
       - run: yamllint config examples inventories kubernetes playbooks roles .github .gitlab-ci.yml
       - run: ansible-lint playbooks roles
+      - run: python scripts/check-controller-preflight.py --output-dir .certweaver/controller-preflight-check
+      - run: sudo -n "$(command -v python)" scripts/check-cluster-versions.py --output-dir .certweaver/cluster-versions-check
+      - run: python scripts/check-cluster-health.py --output-dir .certweaver/cluster-health-check
+      - run: python scripts/check-managed-strategy.py --output-dir .certweaver/managed-strategy-check
+      - run: sudo -n "$(command -v python)" scripts/check-snapshot-config.py --output-dir .certweaver/snapshot-config-check
+      - run: sudo -n "$(command -v python)" scripts/check-snapshot-reconcile.py --output-dir .certweaver/snapshot-reconcile-check
+      - run: sudo -n "$(command -v python)" scripts/check-snapshot-api.py --output-dir .certweaver/snapshot-api-check
+      - run: >-
+          sudo -n "$(command -v python)" scripts/check-kubeconfig-export.py
+          --output-dir .certweaver/kubeconfig-export-check
+      - run: python scripts/install-ci-tool.py helm
+      - run: python scripts/check-platform-baseline.py --helm .certweaver/tools/helm --output-dir .certweaver/platform-baseline-check
+      - run: >-
+          sudo -n "$(command -v python)" scripts/check-chart-acquisition.py
+          --helm .certweaver/tools/helm --output-dir .certweaver/chart-acquisition-check
+      - run: sudo -n "$(command -v python)" scripts/check-git-acquisition.py --output-dir .certweaver/git-acquisition-check
+      - run: sudo -n "$(command -v python)" scripts/check-adapter-download.py --output-dir .certweaver/adapter-download-check
+      - run: sudo -n "$(command -v python)" scripts/check-container-configuration.py --output-dir .certweaver/container-configuration-check
+      - name: Verify isolated application installation without deploying a service
+        env:
+          APPLICATION_PYTHON: ${{ steps.application-python.outputs.python-path }}
+        run: >-
+          sudo -n "$(command -v python)" scripts/check-application-installation.py
+          --build-python "$APPLICATION_PYTHON" --output-dir .certweaver/application-installation-check
       - run: pytest --cov=certweaver --cov-report=term-missing
+      - run: python scripts/check-coverage.py
       - run: ./scripts/validate-all.sh
       - run: certweaver matrix
+  installed-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PACKAGE_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13", "3.14"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ env.PACKAGE_COMMIT }}
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - run: python scripts/install-python-deps.py build
+      - run: python scripts/build-package.py --commit "$PACKAGE_COMMIT"
+      - run: python scripts/check-package-reproducibility.py --commit "$PACKAGE_COMMIT"
+      - run: python scripts/check-wheel.py dist/*.whl
+      - name: Rebuild wheel from source distribution
+        run: |
+          mkdir rebuilt
+          pip wheel --no-build-isolation --no-deps dist/*.tar.gz --wheel-dir rebuilt
+          python scripts/check-wheel.py rebuilt/*.whl
+  required-ci:
+    name: CI / test
+    needs: [test, installed-package]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Reject any incomplete matrix
+        if: needs.test.result != 'success' || needs['installed-package'].result != 'success'
+        run: exit 1
+      - name: Confirm required matrices
+        run: echo "All CI matrices passed."

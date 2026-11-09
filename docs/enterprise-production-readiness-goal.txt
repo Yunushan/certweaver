@@ -1,0 +1,147 @@
+GOAL: CertWeaver enterprise production readiness — 100/100
+
+Bring the named CertWeaver release and approved production deployment profile
+to 100/100 under version 1.0.0 of docs/enterprise-production-readiness.md and
+docs/readiness/enterprise-controls.v1.json. Demonstrate all 100 controls at
+assured level, all twelve category gates and all activated conditional gates
+passing, current release-bound evidence, authenticated independent review,
+and the authorized production decision. Preserve the original objective until
+it is substantively demonstrated.
+
+REQUIRED INPUTS TO FREEZE AT THE START
+
+- Assessment claim: production launch, existing-service operation, or complete
+  product-wide support qualification.
+- Product version, final Git commit, artifact digests, framework/catalogue
+  version and digest, deployment/profile ID, effective configuration, CI and
+  packaging definitions, policy revisions, and target environment.
+- Actual staging configuration path and approved access method; secret-system
+  or file references without exposing values in chat, Git, logs, or evidence.
+- Included modes, adapters and their distinct roles/capabilities, issuers,
+  controller/host OS and architecture, supported runtime/version matrix,
+  tenants, trust domains, failure domains, and external dependencies.
+- Accountable service, platform, PKI, security, recovery, release, operations,
+  and independent review authorities.
+- Numeric SLOs, scheduling/issuance deadlines, consumer availability and
+  renewal margins, revocation/exposure bounds, RTO/RPO, failover limits,
+  alert/response targets, workload/quotas/headroom, soak duration, maintenance,
+  evidence retention/freshness, and patch/rotation deadlines.
+- Approved staging fault-injection and recovery boundaries, stop conditions,
+  cleanup/rollback, maintenance window, and permission constraints.
+
+If a required input is missing, ask for the minimum specific information early
+and continue independent repository work. Do not invent infrastructure,
+credentials, named reviewers, organizational approvals, or service targets.
+The default technical scope is production RKE2 HA plus explicitly selected
+adapters; do not silently narrow any broader scope the user actually requests.
+
+ASSESSMENT RULES
+
+1. Read the framework, complete catalogue, assessment schema, existing
+   production scorecard, validation report, architecture, operations/security
+   docs, repository instructions, and current authoritative implementation.
+   The existing CLI's fixed 97/100 and ten-control evidence gate use a different
+   rubric; do not carry their numerical score into this framework.
+2. Copy docs/readiness/enterprise-assessment.template.json into an approved
+   restricted working location. Start unassessed and populate facts with
+   evidence. Each of the 100 stable controls is worth exactly one point.
+3. Use cumulative maturity levels: 0=unknown/failed, 1=defined (0.25 point),
+   2=implemented (0.50), 3=verified (0.75), 4=assured (1.00). Award a level only
+   when its requirements and all preceding requirements are proved. An
+   observed acceptance failure earns zero until fixed and reverified. A
+   blocker may retain only valid, demonstrated lower-level credit.
+4. Keep the denominator fixed at 100. Do not delete controls, lower weights,
+   weaken criteria, relax evidence expiry, alter gates, round upward, assign
+   free N/A points, or redefine scope to manufacture success. A genuine profile
+   change requires explicit authorized approval and a separately versioned
+   100-point profile before assessment; preserve the earlier result.
+5. Keep software implementation, executed verification, runtime effectiveness,
+   organizational approval, and evidence integrity distinct. Mocks, fixtures,
+   configured workflows, example inventories, empty outputs, and typed review
+   names cannot substitute for real live proof or authenticated approval.
+6. Critical/high findings, exposed keys/credentials, unauthorized issuance,
+   broken isolation, unproven required recovery, or an unknown/failed mandatory
+   gate block the applicable release. Risk acceptance cannot create a passing
+   control or an assured point. Every control is required for 100, including
+   controls that are not themselves mandatory release gates.
+
+WORK TO COMPLETE
+
+- Assess all 100 controls against the current checkout and external state.
+  Record proven, contradicted, unknown, stale, failed, and blocked assertions;
+  exact acceptance results; owner; evidence; and the next remediation action.
+- Remediate configuration/automation safety, privileged execution boundaries,
+  targeting, prerequisites, idempotence, drift, partial failure, upgrade and
+  rollback behavior, portable installed resources, and unsupported/no-op paths.
+- Qualify certificate/identity/trust policy, custody, allowed and denied
+  requests, actual consumer delivery, renewal/adoption, key rotation,
+  invalidation/revocation, CA rollover, and retirement. Use the frozen role and
+  capability matrix for complementary adapters; do not demand that trust-manager
+  issue certificates or enable independent proxy ACME to fake lifecycle proof.
+- Validate effective IAM, tenant isolation, host/workload/network controls,
+  secret confidentiality, protected audit trails, abuse handling, and access
+  removal. Respect approved host-policy decisions; do not disable protections
+  merely to make deployment succeed or bypass a rejected action.
+- Verify actual immutable dependency/action references and trusted acquisition,
+  clean builds, exact sdist/wheel/image contents, secret exclusion with dirty
+  and stale packaging metadata, SBOM/licenses, release identity, least-privilege
+  permissions, signed provenance verification, and security release gates.
+- Execute meaningful positive, negative, integration, compatibility, and
+  release-artifact tests. Enforce the framework's declared test policy and
+  critical behavioral cases. Run actual CI/security checks on the exact
+  candidate; files that configure a check do not prove execution success.
+- Deploy the actual candidate to authorized representative staging and prove
+  the selected support matrix. A deployment-specific score must not become a
+  claim that all twenty adapters and every advertised mode were tested.
+- Exercise approved node/process/webhook/backend/dependency/partition cases,
+  maintenance, client-observed recovery, quorum and ownership safety, cleanup,
+  and repeated convergence. Use the declared external-LB equivalent path when
+  that is the approved topology.
+- Retrieve off-host backups and restore onto isolated/replacement hosts with
+  out-of-cluster recovery access, matching bootstrap material, CA/key-store
+  continuity, protected custody, integrity checks, alternate dependencies, and
+  actual RTO/RPO measurements. Starting etcd alone is not a successful restore.
+- Prove working telemetry, missing-data detection, lifetime-aware alerts,
+  end-to-end service probes, technical notification delivery, real responder
+  triage/escalation/handoff, runbooks, credential operations, incident
+  exercises, maintenance, and sustained ownership.
+- Execute the approved capacity model, degraded-mode load, renewal storms,
+  backlog recovery, endurance/growth, quota and headroom checks. Do not apply
+  unapproved load to a public CA or production service.
+- Implement and adversarially validate the enterprise evaluator required by
+  EVD-04 if it does not exist. Recompute totals and gates from trusted source
+  records; do not trust editable summary totals. The supplied JSON Schema is
+  a structural contract, not a complete evaluator or an authorization system.
+- Reuse valid existing evidence only after subject, freshness, and release-delta
+  review. Re-run affected failed/invalidated checks; do not repeat unrelated
+  passing work without a reason. Retain failures and corrective reruns.
+
+EVIDENCE AND FINAL DELIVERABLES
+
+Produce the completed assessment, scope/objective record, source/artifact
+manifest, per-control evidence and verification references, findings/exception
+register, change-impact review, approval records, and a self-contained readiness
+report. The report must show category scores, coverage/unknowns, every gate,
+compatibility scope, expected versus actual service/recovery/capacity results,
+limitations, owners, reviewer authority, freshness, and the production decision.
+Sanitize shared evidence without destroying its measurement. Protect originals
+and verify controlled references, hashes, provenance, identities, timestamps,
+and required separation of duties. Another model's review is useful assistance,
+not automatic organizational authorization.
+
+DEFINITION OF DONE
+
+All100 catalogue controls are current assured level 4, totaling exactly 100/100;
+all twelve category gates and activated conditional gates PASS; the final
+immutable release/configuration/environment match the evidence; relevant
+CI/security checks and actual staging lifecycle/failure/recovery/performance
+qualification passed; no active exception substitutes for an unmet criterion;
+and authenticated independent review plus the responsible release authorities'
+production decision are recorded. Every explicit acceptance assertion must be
+supported by authoritative evidence at the same scope.
+
+If external infrastructure, access, policy approval, targets, or review authority
+is unavailable, preserve the honest partial result and identify the exact
+blocked control/input/owner. Follow the platform's goal blocked-audit policy.
+Do not mark the goal complete until the full definition of done is true and
+verified; do not replace it with repository-only readiness or a cosmetic score.

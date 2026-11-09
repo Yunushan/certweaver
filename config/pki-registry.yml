@@ -69,6 +69,7 @@ adapters:
       - raw
       - rke2-ha
       - k3s-ha
+      - existing-kubernetes
     upstream: https://github.com/acmesh-official/acme.sh
     notes: Lightweight shell ACME client for hosts and edge services.
     ansibleTask: roles/pki_adapter/tasks/adapters/acme-sh.yml
@@ -86,6 +87,7 @@ adapters:
       - raw
       - rke2-ha
       - k3s-ha
+      - existing-kubernetes
     upstream: https://github.com/certbot/certbot
     notes: Widely documented ACME client; deployment hooks are service-specific.
     ansibleTask: roles/pki_adapter/tasks/adapters/certbot.yml
@@ -103,6 +105,7 @@ adapters:
       - k3s-ha
       - existing-kubernetes
       - standalone
+      - raw
       - docker
     upstream: https://github.com/Keyfactor/ejbca-ce
     notes: Full CA platform; production architecture normally needs external database,
@@ -122,6 +125,7 @@ adapters:
       - raw
       - rke2-ha
       - k3s-ha
+      - existing-kubernetes
     upstream: https://github.com/go-acme/lego
     notes: Go ACME client and library with broad DNS provider support.
     ansibleTask: roles/pki_adapter/tasks/adapters/lego.yml
@@ -213,6 +217,7 @@ adapters:
       - raw
       - rke2-ha
       - k3s-ha
+      - existing-kubernetes
     upstream: https://github.com/dehydrated-io/dehydrated
     notes: Minimal shell ACME client with hook-based deployment.
     ansibleTask: roles/pki_adapter/tasks/adapters/dehydrated.yml
@@ -254,6 +259,7 @@ adapters:
       - k3s-ha
       - existing-kubernetes
       - standalone
+      - raw
       - docker
     upstream: https://github.com/spiffe/spire
     notes: Workload identity and short-lived X.509 SVIDs rather than public web certificates.
@@ -288,6 +294,7 @@ adapters:
       - raw
       - rke2-ha
       - k3s-ha
+      - existing-kubernetes
     upstream: https://github.com/caddyserver/caddy
     notes: Web server/reverse proxy with built-in certificate automation.
     ansibleTask: roles/pki_adapter/tasks/adapters/caddy-auto-https.yml
@@ -322,6 +329,7 @@ adapters:
     modes:
       - docker
       - standalone
+      - raw
     upstream: https://github.com/Netflix/lemur
     notes: Certificate inventory/broker with maintenance risk; requires explicit acknowledgement.
     ansibleTask: roles/pki_adapter/tasks/adapters/lemur.yml
